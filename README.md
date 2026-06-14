@@ -1,3 +1,3 @@
 **wip (obviously)**
 
-build it yourself if you want to test. works fine on my machine
+releases available in the releases section. not recommended for daily use unless you are cool.
