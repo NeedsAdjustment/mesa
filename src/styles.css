@@ -1,6 +1,10 @@
+html,
+body {
+  background: transparent;
+}
+
 .titlebar {
   height: 100%;
-  background: #329ea3;
   user-select: none;
   display: grid;
   grid-template-columns: auto max-content;
@@ -20,9 +24,16 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 30px;
+  width: 46px;
   background-color: transparent;
 }
+
+.titlebar button > svg {
+  width: 10px;
+  height: 10px;
+  fill: white;
+}
+
 .titlebar button:hover {
   background: #5bbec3;
 }

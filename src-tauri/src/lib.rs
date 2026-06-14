@@ -3,6 +3,8 @@ use tauri::{
     Manager, Theme, WebviewUrl, WebviewBuilder, LogicalPosition, LogicalSize, WindowBuilder, WindowEvent
 };
 
+use window_vibrancy::{apply_acrylic, apply_vibrancy, NSVisualEffectMaterial};
+
 const MESSENGER_URL: &str = "https://www.facebook.com/messages";
 const MESSENGER_STYLE_ID: &str = "mesa-custom-messenger-css";
 const MESSENGER_CSS: &str = include_str!("messenger.css");
@@ -89,24 +91,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-          let app_handle = app.handle();
-          let dark_item = MenuItem::new(app_handle, "Dark", true, None::<&str>)?;
-          let light_item = MenuItem::new(app_handle, "Light", true, None::<&str>)?;
-          let system_item = MenuItem::new(app_handle, "System", true, None::<&str>)?;
-
-          let dark_id = dark_item.id().clone();
-          let light_id = light_item.id().clone();
-          let system_id = system_item.id().clone();
-
-          let theme_menu = Submenu::with_items(
-              app_handle,
-              "Theme",
-              true,
-              &[&dark_item, &light_item, &system_item],
-          )?;
-          let menu = Menu::with_items(app_handle, &[&theme_menu])?;
-          app_handle.set_menu(menu)?;
-
           let width = 800.;
           let height = 600.;
 
@@ -117,28 +101,21 @@ pub fn run() {
           .inner_size(width, height)
           .title("Mesa")
           .decorations(false)
-          .on_menu_event(move |window, event| {
-              let theme = if event.id == dark_id {
-                  Some(Theme::Dark)
-              } else if event.id == light_id {
-                  Some(Theme::Light)
-              } else if event.id == system_id {
-                  None
-              } else {
-                  return;
-              };
-
-              let _ = window.set_theme(theme);
-              window.app_handle().set_theme(theme);
-          })
-          
+          .transparent(true)
           .build()?;
+
+          #[cfg(target_os = "macos")]
+          apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None).expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+
+          #[cfg(target_os = "windows")]
+          apply_acrylic(&window, Some((18, 18, 18, 125))).expect("Unsupported platform! 'apply_blur' is only supported on Windows");
 
           let titlebar = window.add_child(
             WebviewBuilder::new(
               "top_bar",
               WebviewUrl::App("index.html".into()),
-            ),
+            )
+            .transparent(true),
             LogicalPosition::new(0.,0.),
             LogicalSize::new(width, TITLEBAR_HEIGHT),
             
@@ -149,6 +126,7 @@ pub fn run() {
               "chat_window",
               WebviewUrl::External(MESSENGER_URL.parse().expect("valid messenger url"))
             )
+            .transparent(true)
             .on_page_load(|window, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished
           && should_inject_css(payload.url()){
