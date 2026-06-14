@@ -1,0 +1,53 @@
+html,
+body,
+.__fb-light-mode,
+.__fb-dark-mode {
+  height: 100% !important;
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  --messenger-card-spacing: 0px !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.__fb-dark-mode::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+div[aria-label='Thread list'][role='navigation'] {
+  width: unset !important;
+  min-width: 7rem !important;
+  transition: min-width 80ms ease-in-out !important;
+}
+
+div[aria-label='Thread list'][role='navigation']:hover {
+  min-width: 45vw !important;
+}
+
+div[role='progressbar'],
+div[role='banner'],
+div[aria-label='All chats'] *::-webkit-scrollbar,
+div[aria-label='Thread list'][role='navigation']:not(:hover) > div > div > *:not(:last-child),
+div[aria-label='Thread list'][role='navigation']:not(:hover) div[role='gridcell'] > div > div > div > a > div > div > *:nth-child(2),
+div[aria-label='Thread list'][role='navigation']:not(:hover)
+  div[role='gridcell']
+  > div
+  > div
+  > div
+  > div[role='button']
+  > div
+  > div
+  > *:nth-child(2) {
+  display: none !important;
+}
+
+div.xxzkxad {
+  top: unset !important;
+}
+
+div.x85a59c,
+div.x1bc3s5a {
+  max-height: none !important;
+}
