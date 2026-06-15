@@ -1,3 +1,8 @@
+:root {
+  --titlebar-icon-color: white;
+  --titlebar-hover-color: #5bbec3;
+}
+
 html,
 body {
   background: transparent;
@@ -31,9 +36,9 @@ body {
 .titlebar button > svg {
   width: 10px;
   height: 10px;
-  fill: white;
+  fill: var(--titlebar-icon-color);
 }
 
 .titlebar button:hover {
-  background: #5bbec3;
+  background: var(--titlebar-hover-color);
 }

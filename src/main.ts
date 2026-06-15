@@ -1,6 +1,6 @@
-console.info('Mesa frontend initialized')
-
 import { getCurrentWindow } from '@tauri-apps/api/window'
+
+console.info('Mesa frontend initialized')
 
 const appWindow = getCurrentWindow()
 
