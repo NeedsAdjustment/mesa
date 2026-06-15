@@ -6,11 +6,11 @@ body,
   overflow: hidden !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
+  background-color: transparent !important;
   --messenger-card-spacing: 0px !important;
   --messenger-card-background: transparent !important;
   --surface-background: transparent !important;
   --web-wash: transparent !important;
-  background-color: transparent !important;
 }
 
 html::-webkit-scrollbar,

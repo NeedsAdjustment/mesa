@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use tauri::{
-    WebviewUrl, WebviewBuilder, LogicalPosition, LogicalSize,
+    Manager, WebviewUrl, WebviewBuilder, LogicalPosition, LogicalSize,
     WindowBuilder, WindowEvent,
 };
 
@@ -152,16 +152,28 @@ fn setup_resize_handler(
     });
 }
 
+#[tauri::command]
+fn resize_titlebar(window: tauri::Window, height: f64) {
+    if let Some(titlebar) = window.get_webview("top_bar") {
+        let width = window.inner_size().map(|s| {
+            let scale = window.scale_factor().unwrap_or(1.0);
+            s.to_logical::<f64>(scale).width
+        }).unwrap_or(INITIAL_WIDTH);
+        let _ = titlebar.set_size(LogicalSize::new(width, height));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![resize_titlebar])
         .setup(|app| {
             let window = create_window(app)?;
             apply_platform_effects(&window);
 
-            let titlebar = create_titlebar(&window)?;
             let chat = create_chat(&window)?;
+            let titlebar = create_titlebar(&window)?;
 
             apply_layout(&window, &titlebar, &chat);
             setup_resize_handler(&window, &titlebar, &chat);

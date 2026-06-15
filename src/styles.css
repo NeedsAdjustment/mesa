@@ -1,6 +1,7 @@
 :root {
   --titlebar-icon-color: white;
-  --titlebar-hover-color: #5bbec3;
+  --titlebar-hover-color: rgba(255, 255, 255, 0.0605);
+  --titlebar-font: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
 }
 
 html,
@@ -8,20 +9,204 @@ body {
   background: transparent;
 }
 
+/* ---- Titlebar ---- */
+
 .titlebar {
-  height: 100%;
+  height: 32px;
   user-select: none;
-  display: grid;
-  grid-template-columns: auto max-content;
+  display: flex;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
 }
-.titlebar > .controls {
+
+/* ---- Menu bar ---- */
+
+.menu-bar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.menu {
+  position: relative;
+  height: 100%;
+}
+
+.menu-trigger {
+  appearance: none;
+  padding: 0 10px;
+  margin: 0;
+  border: none;
+  height: 100%;
+  background: transparent;
+  color: var(--titlebar-icon-color);
+  font-family: var(--titlebar-font);
+  font-size: 13px;
+}
+
+.menu-trigger:hover,
+.menu.open .menu-trigger {
+  background: var(--titlebar-hover-color);
+}
+
+/* ---- Dropdown ---- */
+
+.dropdown {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  top: 100%;
+  left: 5px;
+  min-width: max-content;
+  background: #2b2b2b;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  padding: 4px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.menu.open .dropdown {
   display: flex;
 }
-.titlebar button {
+
+/* ---- Entries ---- */
+
+.menu-entry {
+  appearance: none;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  width: auto;
+  margin: 0;
+  padding: 6px 20px;
+  border: none;
+  background: transparent;
+  color: #e0e0e0;
+  font-family: var(--titlebar-font);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu-entry:hover:not(.text):not(.disabled):not(.inline) {
+  background: var(--titlebar-hover-color);
+  color: #fff;
+}
+
+.menu-entry.text,
+.menu-entry.disabled {
+  cursor: default;
+}
+
+.menu-entry.disabled {
+  color: #666;
+}
+
+.menu-entry.inline {
+  pointer-events: none;
+  gap: 20px;
+  padding-right: 12px;
+}
+
+/* ---- Divider ---- */
+
+.divider {
+  height: 1px;
+  background: #3a3a3a;
+  margin: 4px 0;
+}
+
+/* ---- Inline controls (zoom, theme) ---- */
+
+.inline-text {
+  align-content: center;
+}
+
+.inline-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.icon-btn {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #555;
+  border-radius: 3px;
+  background: transparent;
+  color: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: #444;
+}
+
+.zoom-value {
+  min-width: 32px;
+  text-align: center;
+  color: #e0e0e0;
+  font-size: 12px;
+}
+
+/* ---- Theme radio buttons ---- */
+
+.theme-btn {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radio-circle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #888;
+  background: transparent;
+}
+
+.theme-btn.selected .radio-circle {
+  border-color: var(--titlebar-icon-color);
+  box-shadow: inset 0 0 0 2px var(--titlebar-hover-color);
+}
+
+/* ---- Title ---- */
+
+.title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--titlebar-icon-color);
+  font-family: var(--titlebar-font);
+  font-size: 13px;
+  flex-grow: 1;
+}
+
+/* ---- Window controls ---- */
+
+.controls {
+  display: flex;
+}
+
+.control {
   appearance: none;
   padding: 0;
   margin: 0;
@@ -33,12 +218,13 @@ body {
   background-color: transparent;
 }
 
-.titlebar button > svg {
+.control > svg {
   width: 10px;
   height: 10px;
   fill: var(--titlebar-icon-color);
 }
 
-.titlebar button:hover {
+.control:hover {
   background: var(--titlebar-hover-color);
 }
+
