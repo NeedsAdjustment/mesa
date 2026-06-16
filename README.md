@@ -27,10 +27,11 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 - Doesn't look too terrible
 
 ## To do
+
 ### In the queue
 
+- Fix vibrancy tinting
 - Notification support
-- Fix themes on Windows
 - Implement front-end sidebar mechanism
 - Attain some level of confidence that the CSS selectors won't all break instantly
 
@@ -39,12 +40,13 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 - [x] Vibrancy support _(Windows, MacOS)_
 - [x] Custom titlebar with hideable window controls _(Windows)_
 - [ ] Full `facebook.com/messages` functionality
-- [ ] Theming support (`dark`/`light`/`system`)
+- [x] Theming support (`dark`/`light`/`system`)
 - [ ] (Reasonably) robust CSS injection
 - [ ] Auto-updates _(Windows)_
 - [ ] Native titlebar _(MacOS, Linux)_
 - [ ] MacOS & Linux builds
 - [ ] Icon Composer icon _(MacOS)_
+- [ ] Custom themes
 - [ ] Dock/Tray mode _(Windows, MacOS)_
 - [ ] ???
 
