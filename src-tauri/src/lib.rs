@@ -1,12 +1,12 @@
-use std::sync::LazyLock;
+use std::sync::{LazyLock, Mutex};
 
 use tauri::{
-    Manager, WebviewUrl, WebviewBuilder, LogicalPosition, LogicalSize,
-    WindowBuilder, WindowEvent,
+    LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl, WindowBuilder, WindowEvent,
 };
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 #[allow(unused_imports)]
-use window_vibrancy::{apply_acrylic, apply_vibrancy, NSVisualEffectMaterial};
+use window_vibrancy::{NSVisualEffectMaterial, apply_acrylic, apply_vibrancy};
 
 const MESSENGER_URL: &str = "https://facebook.com/messages";
 const MESSENGER_STYLE_ID: &str = "mesa-custom-messenger-css";
@@ -20,18 +20,21 @@ const INITIAL_HEIGHT: f64 = 600.;
 #[cfg(target_os = "windows")]
 const ACRYLIC_COLOR: (u8, u8, u8, u8) = (18, 18, 18, 125);
 
-const INJECT_URLS: &[&str] = &[
-    "facebook.com/messages",
-];
+const INJECT_URLS: &[&str] = &["facebook.com/messages"];
+
+const ZOOM_MIN: f64 = 0.5;
+const ZOOM_MAX: f64 = 2.0;
+const ZOOM_STEP: f64 = 0.1;
+
+static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
 
 static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
     let css = serde_json::to_string(MESSENGER_CSS).expect("failed to serialize custom CSS");
-    let style_id =
-        serde_json::to_string(MESSENGER_STYLE_ID).expect("failed to serialize style id");
+    let style_id = serde_json::to_string(MESSENGER_STYLE_ID).expect("failed to serialize style id");
 
     INJECT_JS
-        .replace("{STYLE_ID}", &style_id)
-        .replace("{CSS}", &css)
+        .replace("__STYLE_ID__", &style_id)
+        .replace("__CSS__", &css)
 });
 
 fn apply_layout(
@@ -84,9 +87,7 @@ fn create_window(app: &mut tauri::App) -> Result<tauri::Window, Box<dyn std::err
 
 fn apply_platform_effects(window: &tauri::Window) {
     #[cfg(target_os = "macos")]
-    if let Err(e) =
-        apply_vibrancy(window, NSVisualEffectMaterial::HudWindow, None, None)
-    {
+    if let Err(e) = apply_vibrancy(window, NSVisualEffectMaterial::HudWindow, None, None) {
         eprintln!("failed to apply vibrancy effect: {e}");
     }
 
@@ -113,11 +114,7 @@ fn create_chat(
     let chat = window.add_child(
         WebviewBuilder::new(
             "chat_window",
-            WebviewUrl::External(
-                MESSENGER_URL
-                    .parse()
-                    .expect("valid messenger url"),
-            ),
+            WebviewUrl::External(MESSENGER_URL.parse().expect("valid messenger url")),
         )
         .transparent(true)
         .on_page_load(|window, payload| {
@@ -138,8 +135,6 @@ fn setup_resize_handler(
     titlebar: &tauri::webview::Webview,
     chat: &tauri::webview::Webview,
 ) {
-    // Two clones are needed: `on_window_event` consumes self, so one clone is
-    // consumed by the method call, and the other is captured by the closure.
     let window_for_event = window.clone();
     let window_for_layout = window.clone();
     let titlebar = titlebar.clone();
@@ -152,14 +147,106 @@ fn setup_resize_handler(
     });
 }
 
+fn apply_zoom_via_app(app: &tauri::AppHandle, zoom: f64) {
+    if let Some(window) = app.get_window("main") {
+        if let Some(chat) = window.get_webview("chat_window") {
+            let _ = chat.set_zoom(zoom);
+        }
+    }
+    if let Ok(mut current) = CURRENT_ZOOM.lock() {
+        *current = zoom;
+    }
+}
+
+fn setup_zoom_shortcuts(app: &mut tauri::App, window: &tauri::Window) {
+    let shortcuts = [
+        Shortcut::new(Some(Modifiers::CONTROL), Code::Equal),
+        Shortcut::new(Some(Modifiers::CONTROL), Code::Minus),
+        Shortcut::new(Some(Modifiers::CONTROL), Code::Digit0),
+        Shortcut::new(Some(Modifiers::CONTROL), Code::NumpadAdd),
+        Shortcut::new(Some(Modifiers::CONTROL), Code::NumpadSubtract),
+    ];
+
+    let app_handle = app.handle().clone();
+
+    // Register initially (window starts focused)
+    for s in &shortcuts {
+        let _ = app_handle.global_shortcut().register(*s);
+    }
+
+    // Re-register/unregister on focus change so shortcuts don't leak to other apps
+    let focus_handle = app_handle.clone();
+    let window_for_focus = window.clone();
+    window_for_focus.on_window_event(move |event| {
+        if let WindowEvent::Focused(focused) = event {
+            if *focused {
+                for s in &shortcuts {
+                    let _ = focus_handle.global_shortcut().register(*s);
+                }
+            } else {
+                let _ = focus_handle.global_shortcut().unregister_all();
+            }
+        }
+    });
+}
+
 #[tauri::command]
 fn resize_titlebar(window: tauri::Window, height: f64) {
     if let Some(titlebar) = window.get_webview("top_bar") {
-        let width = window.inner_size().map(|s| {
-            let scale = window.scale_factor().unwrap_or(1.0);
-            s.to_logical::<f64>(scale).width
-        }).unwrap_or(INITIAL_WIDTH);
+        let width = window
+            .inner_size()
+            .map(|s| {
+                let scale = window.scale_factor().unwrap_or(1.0);
+                s.to_logical::<f64>(scale).width
+            })
+            .unwrap_or(INITIAL_WIDTH);
         let _ = titlebar.set_size(LogicalSize::new(width, height));
+    }
+}
+
+#[tauri::command]
+fn set_chat_zoom(window: tauri::Window, zoom: f64) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let _ = chat.set_zoom(zoom);
+        if let Ok(mut current) = CURRENT_ZOOM.lock() {
+            *current = zoom;
+        }
+    }
+}
+
+#[tauri::command]
+fn get_chat_zoom() -> f64 {
+    CURRENT_ZOOM.lock().map(|z| *z).unwrap_or(1.0)
+}
+
+#[tauri::command]
+fn simulate_shortcut(window: tauri::Window, action: String) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let js = match action.as_str() {
+            "undo" => r"document.execCommand('undo')",
+            "redo" => r"document.execCommand('redo')",
+            "cut" => r"document.execCommand('cut')",
+            "copy" => r"document.execCommand('copy')",
+            "paste" => r"document.execCommand('paste')",
+            "delete" => r"document.execCommand('delete')",
+            "selectAll" => r"document.execCommand('selectAll')",
+            _ => return,
+        };
+        let _ = chat.eval(js);
+    }
+}
+
+#[tauri::command]
+fn focus_chat(window: tauri::Window) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let _ = chat.set_focus();
+    }
+}
+
+#[tauri::command]
+fn show_devtools(window: tauri::Window) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let _ = chat.open_devtools();
     }
 }
 
@@ -167,7 +254,33 @@ fn resize_titlebar(window: tauri::Window, height: f64) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![resize_titlebar])
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state != ShortcutState::Pressed {
+                        return;
+                    }
+
+                    let current = CURRENT_ZOOM.lock().map(|z| *z).unwrap_or(1.0);
+                    let next = match shortcut.key {
+                        Code::Equal | Code::NumpadAdd => (current + ZOOM_STEP).min(ZOOM_MAX),
+                        Code::Minus | Code::NumpadSubtract => (current - ZOOM_STEP).max(ZOOM_MIN),
+                        Code::Digit0 | Code::Numpad0 => 1.0,
+                        _ => return,
+                    };
+
+                    apply_zoom_via_app(app, next);
+                })
+                .build(),
+        )
+        .invoke_handler(tauri::generate_handler![
+            resize_titlebar,
+            set_chat_zoom,
+            get_chat_zoom,
+            simulate_shortcut,
+            focus_chat,
+            show_devtools
+        ])
         .setup(|app| {
             let window = create_window(app)?;
             apply_platform_effects(&window);
@@ -177,6 +290,7 @@ pub fn run() {
 
             apply_layout(&window, &titlebar, &chat);
             setup_resize_handler(&window, &titlebar, &chat);
+            setup_zoom_shortcuts(app, &window);
 
             Ok(())
         })

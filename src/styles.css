@@ -26,7 +26,6 @@ body {
 .menu-bar {
   display: flex;
   align-items: center;
-  gap: 1px;
 }
 
 .menu {
@@ -39,7 +38,7 @@ body {
   padding: 0 10px;
   margin: 0;
   border: none;
-  height: 100%;
+  line-height: 32px;
   background: transparent;
   color: var(--titlebar-icon-color);
   font-family: var(--titlebar-font);
@@ -77,11 +76,12 @@ body {
 .menu-entry {
   appearance: none;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
   width: auto;
   margin: 0;
   padding: 6px 20px;
+  padding-right: 12px;
   border: none;
   background: transparent;
   color: #e0e0e0;
@@ -108,7 +108,7 @@ body {
 .menu-entry.inline {
   pointer-events: none;
   gap: 20px;
-  padding-right: 12px;
+
 }
 
 /* ---- Divider ---- */
@@ -146,6 +146,7 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  font-size: 9px;
 }
 
 .icon-btn:hover {
@@ -194,6 +195,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 32px;
   color: var(--titlebar-icon-color);
   font-family: var(--titlebar-font);
   font-size: 13px;
@@ -218,7 +220,7 @@ body {
   background-color: transparent;
 }
 
-.control > svg {
+.control>svg {
   width: 10px;
   height: 10px;
   fill: var(--titlebar-icon-color);
@@ -228,3 +230,18 @@ body {
   background: var(--titlebar-hover-color);
 }
 
+/* ---- Hide window controls ---- */
+
+.titlebar.controls-hidden .controls {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.menu-entry .check-icon {
+  display: none;
+  font-size: 12px;
+}
+
+.menu-entry.checked .check-icon {
+  display: inline;
+}

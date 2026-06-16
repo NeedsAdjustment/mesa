@@ -6,6 +6,8 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "global-shortcut:default",
+    "core:webview:allow-set-webview-zoom",
     "core:window:allow-close",
     "core:window:allow-center",
     "core:window:allow-minimize",
