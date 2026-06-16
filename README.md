@@ -18,32 +18,36 @@
 </div>
 
 Inspired by the death of Caprine (specifically [this issue](https://github.com/sindresorhus/caprine/issues/2374)).
+
 Windows releases currently available [here](https://github.com/NeedsAdjustment/mesa/releases). MacOS next, probably.
 
 ## Features
+
 - Works on my machine
 - Doesn't look too terrible
 
-## 1.0 To-Do
-- Get calls working (and verify other Messenger functions work)
+## To do
+### In the queue
+
+- Notification support
 - Fix themes on Windows
 - Implement front-end sidebar mechanism
 - Attain some level of confidence that the CSS selectors won't all break instantly
 
-## Roadmap
+### Roadmap
 
-- [x] Vibrancy support *(Windows, MacOS)*
-- [x] Custom titlebar with hideable window controls *(Windows)*
-- [ ] Full Messenger functionality
+- [x] Vibrancy support _(Windows, MacOS)_
+- [x] Custom titlebar with hideable window controls _(Windows)_
+- [ ] Full `facebook.com/messages` functionality
 - [ ] Theming support (`dark`/`light`/`system`)
-- [ ] Robust CSS injection
-- [ ] Auto-updates *(Windows)*
-- [ ] Native titlebar *(MacOS, Linux)*
-- [ ] MacOS & Linux builds 
-- [ ] Icon Composer icon *(MacOS)*
+- [ ] (Reasonably) robust CSS injection
+- [ ] Auto-updates _(Windows)_
+- [ ] Native titlebar _(MacOS, Linux)_
+- [ ] MacOS & Linux builds
+- [ ] Icon Composer icon _(MacOS)_
+- [ ] Dock/Tray mode _(Windows, MacOS)_
 - [ ] ???
 
 ## Contributing
 
 Open a pull request or something idk
-
