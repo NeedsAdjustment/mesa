@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 
 use tauri::{
@@ -6,6 +6,7 @@ use tauri::{
     WindowBuilder, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_opener::open_url;
 
 #[allow(unused_imports)]
 use window_vibrancy::{NSVisualEffectMaterial, apply_acrylic, apply_vibrancy};
@@ -30,6 +31,7 @@ const ZOOM_STEP: f64 = 0.1;
 
 static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
 static CALL_WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
+static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
 
 static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
     let css = serde_json::to_string(MESSENGER_CSS).expect("failed to serialize custom CSS");
@@ -78,6 +80,34 @@ fn should_inject_css(url: &tauri::Url) -> bool {
     INJECT_URLS.iter().any(|pattern| url_str.contains(pattern))
 }
 
+fn is_facebook_domain(url: &tauri::Url) -> bool {
+    url.host_str().is_some_and(|host| {
+        host == "fb.com"
+            || host == "www.fb.com"
+            || host == "facebook.com"
+            || host == "messenger.com"
+            || host == "www.messenger.com"
+            || host.ends_with(".facebook.com")
+            || host.ends_with(".messenger.com")
+    })
+}
+
+fn should_allow_navigation(url: &tauri::Url) -> bool {
+    let url_str = url.as_str();
+
+    // Always allow the core Messenger page
+    if url_str.starts_with(MESSENGER_URL) {
+        return true;
+    }
+
+    // When logged out, allow any Facebook URL so login flows work
+    if IS_LOGGED_OUT.load(Ordering::Relaxed) && is_facebook_domain(url) {
+        return true;
+    }
+
+    false
+}
+
 fn create_window(app: &mut tauri::App) -> Result<tauri::Window, Box<dyn std::error::Error>> {
     let window = WindowBuilder::new(app, "main")
         .inner_size(INITIAL_WIDTH, INITIAL_HEIGHT)
@@ -121,7 +151,21 @@ fn create_chat(
             WebviewUrl::External(MESSENGER_URL.parse().expect("valid messenger url")),
         )
         .transparent(true)
+        .on_navigation(|url| {
+            if should_allow_navigation(url) {
+                true
+            } else {
+                let _ = open_url(url.as_str(), None::<&str>);
+                false
+            }
+        })
         .on_new_window(move |url, _features| {
+            // Open non-Messenger links in the external browser instead of a new webview
+            if !should_allow_navigation(&url) {
+                let _ = open_url(url.as_str(), None::<&str>);
+                return tauri::webview::NewWindowResponse::Deny;
+            }
+
             let number = CALL_WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
             let label = format!("call-{number}");
 
@@ -141,8 +185,7 @@ fn create_chat(
                 )
                 .on_navigation(move |url| {
                     if url.as_str().contains("mesa-close") {
-                        if let Some(window) =
-                            app_handle_for_nav.get_webview_window(&label_for_nav)
+                        if let Some(window) = app_handle_for_nav.get_webview_window(&label_for_nav)
                         {
                             let _ = window.destroy();
                         }
@@ -164,10 +207,17 @@ fn create_chat(
             }
         })
         .on_page_load(|window, payload| {
-            if payload.event() == tauri::webview::PageLoadEvent::Finished
-                && should_inject_css(payload.url())
-            {
-                let _ = window.eval(&*INJECT_SCRIPT);
+            if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                // Track whether we're on a login page
+                let url_str = payload.url().as_str();
+                IS_LOGGED_OUT.store(
+                    url_str == "about:blank" || url_str.contains("/login"),
+                    Ordering::Relaxed,
+                );
+
+                if should_inject_css(payload.url()) {
+                    let _ = window.eval(&*INJECT_SCRIPT);
+                }
             }
         }),
         LogicalPosition::new(0., TITLEBAR_HEIGHT),
