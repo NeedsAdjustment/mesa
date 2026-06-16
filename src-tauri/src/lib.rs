@@ -1,7 +1,9 @@
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 
 use tauri::{
-    LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl, WindowBuilder, WindowEvent,
+    LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl, WebviewWindowBuilder,
+    WindowBuilder, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -27,6 +29,7 @@ const ZOOM_MAX: f64 = 2.0;
 const ZOOM_STEP: f64 = 0.1;
 
 static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
+static CALL_WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
     let css = serde_json::to_string(MESSENGER_CSS).expect("failed to serialize custom CSS");
@@ -111,12 +114,55 @@ fn create_titlebar(
 fn create_chat(
     window: &tauri::Window,
 ) -> Result<tauri::webview::Webview, Box<dyn std::error::Error>> {
+    let app_handle = window.app_handle().clone();
     let chat = window.add_child(
         WebviewBuilder::new(
             "chat_window",
             WebviewUrl::External(MESSENGER_URL.parse().expect("valid messenger url")),
         )
         .transparent(true)
+        .on_new_window(move |url, _features| {
+            let number = CALL_WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let label = format!("call-{number}");
+
+            let app_handle_for_nav = app_handle.clone();
+            let label_for_nav = label.clone();
+
+            let builder = WebviewWindowBuilder::new(&app_handle, label, WebviewUrl::External(url))
+                .title("Messenger Call")
+                .inner_size(960.0, 640.0)
+                .auto_resize()
+                .initialization_script(
+                    r#"
+                    window.close = function() {
+                        window.location.href = 'https://mesa-close.localhost/';
+                    };
+                    "#,
+                )
+                .on_navigation(move |url| {
+                    if url.as_str().contains("mesa-close") {
+                        if let Some(window) =
+                            app_handle_for_nav.get_webview_window(&label_for_nav)
+                        {
+                            let _ = window.destroy();
+                        }
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .on_document_title_changed(|window, title| {
+                    let _ = window.set_title(&title);
+                });
+
+            match builder.build() {
+                Ok(window) => tauri::webview::NewWindowResponse::Create { window },
+                Err(e) => {
+                    eprintln!("failed to create call window: {e}");
+                    tauri::webview::NewWindowResponse::Deny
+                }
+            }
+        })
         .on_page_load(|window, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished
                 && should_inject_css(payload.url())
