@@ -250,6 +250,25 @@ fn show_devtools(window: tauri::Window) {
     }
 }
 
+#[tauri::command]
+fn logout(window: tauri::Window) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let _ = chat.clear_all_browsing_data();
+        let _ = chat.eval(r#"window.location.href = 'https://www.facebook.com/messages/'"#);
+    }
+}
+
+#[tauri::command]
+fn check_logged_in(window: tauri::Window) -> bool {
+    if let Some(chat) = window.get_webview("chat_window") {
+        if let Ok(url) = chat.url() {
+            let s = url.as_str();
+            return !(s == "about:blank" || s.contains("/login"));
+        }
+    }
+    false
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -279,7 +298,9 @@ pub fn run() {
             get_chat_zoom,
             simulate_shortcut,
             focus_chat,
-            show_devtools
+            show_devtools,
+            logout,
+            check_logged_in
         ])
         .setup(|app| {
             let window = create_window(app)?;

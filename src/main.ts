@@ -27,12 +27,21 @@ document.querySelectorAll<HTMLDivElement>('.menu').forEach((menu) => {
   const trigger = menu.querySelector<HTMLButtonElement>('.menu-trigger')!
   const dropdown = menu.querySelector<HTMLElement>('.dropdown')!
 
-  trigger.addEventListener('click', (e) => {
+  trigger.addEventListener('click', async (e) => {
     e.stopPropagation()
     const wasOpen = menu.classList.contains('open')
     closeAllMenus()
     if (!wasOpen) {
-      if (trigger.textContent === 'View') syncZoomDisplay()
+      if (trigger.textContent === 'View') {
+        syncZoomDisplay()
+      } else if (trigger.textContent === 'File') {
+        const loggedIn = await invoke<boolean>('check_logged_in')
+        document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
+          if (btn.textContent?.trim() === 'Log Out' && btn.closest('.menu')?.querySelector('.menu-trigger')?.textContent === 'File') {
+            btn.classList.toggle('hidden', !loggedIn)
+          }
+        })
+      }
       menu.classList.add('open')
       const height = dropdown.offsetHeight || 300
       invoke('resize_titlebar', { height: TITLEBAR_HEIGHT + height })
@@ -161,6 +170,14 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
       invoke('show_devtools')
+      closeMenusAndFocusChat()
+    })
+  }
+
+  if (btn.textContent?.trim() === 'Log Out' && btn.closest('.menu')?.querySelector('.menu-trigger')?.textContent === 'File') {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      invoke('logout')
       closeMenusAndFocusChat()
     })
   }
