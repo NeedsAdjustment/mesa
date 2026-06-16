@@ -1,3 +1,41 @@
-**wip (obviously)**
+<a id="readme-top"></a>
 
-releases available in the releases section. not recommended for daily use unless you are cool.
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/NeedsAdjustment/mesa">
+    <img src="mesa.svg" alt="Logo" width="80" height="80">
+  </a>
+
+<h3 align="center">mesa</h3>
+
+  <p align="center">
+    A <s>cross-platform</s> desktop client for Facebook Messenger.
+    <br />
+    <br />
+    <i>screenshots TBA</i>
+  </p>
+</div>
+
+Inspired by the death of Caprine (specifically [this issue](https://github.com/sindresorhus/caprine/issues/2374)). Windows releases currently available [here](https://github.com/NeedsAdjustment/mesa/releases). MacOS next, probably.
+
+## Features
+- Works on my machine
+- Doesn't look too terrible
+
+## Roadmap
+
+- [x] Vibrancy support *(Windows, MacOS)*
+- [x] Custom titlebar with hideable window controls *(Windows)*
+- [ ] Theming support (`dark`/`light`/`system`)
+- [ ] Robust CSS injection
+- [ ] Auto-updates *(Windows)*
+- [ ] Native titlebar *(MacOS, Linux)*
+- [ ] MacOS & Linux builds 
+- [ ] Icon Composer icon *(MacOS)*
+- [ ] ???
+
+## Contributing
+
+Open a pull request or something idk
+
