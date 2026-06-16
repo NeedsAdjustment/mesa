@@ -1,14 +1,3 @@
-:root {
-  --titlebar-icon-color: white;
-  --titlebar-hover-color: rgba(255, 255, 255, 0.0605);
-  --titlebar-font: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-}
-
-html,
-body {
-  background: transparent;
-}
-
 /* ---- Titlebar ---- */
 
 .titlebar {
@@ -19,6 +8,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
+  background: #1e1e1e;
 }
 
 /* ---- Menu bar ---- */
@@ -111,7 +101,6 @@ body {
 .menu-entry.inline {
   pointer-events: none;
   gap: 20px;
-
 }
 
 /* ---- Divider ---- */
@@ -187,9 +176,21 @@ body {
   background: transparent;
 }
 
+.theme-btn[title="light"] .radio-circle {
+  background: #fff;
+}
+
+.theme-btn[title="dark"] .radio-circle {
+  background: #000;
+}
+
+.theme-btn[title="system"] .radio-circle {
+  background: linear-gradient(135deg, #fff 50%, #000 50%);
+}
+
 .theme-btn.selected .radio-circle {
-  border-color: var(--titlebar-icon-color);
-  box-shadow: inset 0 0 0 2px var(--titlebar-hover-color);
+  outline: 2px solid var(--facebook-blue);
+  outline-offset: 2px;
 }
 
 /* ---- Title ---- */

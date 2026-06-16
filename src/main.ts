@@ -163,6 +163,97 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
+// ---- Theme ----
+
+const THEME_KEY = 'mesa:theme'
+
+function getTheme(): string {
+  return localStorage.getItem(THEME_KEY) || 'dark'
+}
+
+function resolveTheme(theme: string): string {
+  if (theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+  return theme
+}
+
+function applyTheme(theme: string) {
+  const effective = resolveTheme(theme)
+  document.documentElement.classList.toggle('theme-light', effective === 'light')
+  invoke('set_theme', { theme: effective })
+}
+
+let systemThemeCleanup: (() => void) | null = null
+
+function setTheme(theme: string) {
+  localStorage.setItem(THEME_KEY, theme)
+
+  document.querySelectorAll('.theme-btn').forEach((btn) => {
+    btn.classList.toggle('selected', btn.getAttribute('title') === theme)
+  })
+
+  applyTheme(theme)
+
+  systemThemeCleanup?.()
+  systemThemeCleanup = null
+
+  if (theme === 'system') {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = () => applyTheme('system')
+    mq.addEventListener('change', handler)
+    systemThemeCleanup = () => mq.removeEventListener('change', handler)
+  }
+}
+
+// Initialize theme
+setTheme(getTheme())
+
+// Wire up theme radio buttons
+document.querySelectorAll('.theme-btn').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    setTheme(btn.getAttribute('title') || 'dark')
+    closeMenusAndFocusChat()
+  })
+})
+
+// ---- Backdrop Blur ----
+
+const BACKDROP_KEY = 'mesa:backdrop-blur'
+
+function getBackdropBlur(): boolean {
+  return localStorage.getItem(BACKDROP_KEY) === 'true'
+}
+
+function setBackdropBlur(enabled: boolean) {
+  localStorage.setItem(BACKDROP_KEY, String(enabled))
+
+  document.querySelectorAll('.menu-entry').forEach((btn) => {
+    if (btn.textContent?.trim() === 'Backdrop Blur') {
+      btn.classList.toggle('checked', enabled)
+    }
+  })
+
+  document.documentElement.classList.toggle('backdrop-blur', enabled)
+  invoke('set_backdrop_blur', { enabled, theme: resolveTheme(getTheme()) })
+}
+
+// Initialize from saved state
+setBackdropBlur(getBackdropBlur())
+
+// Wire up Backdrop Blur button
+document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
+  if (btn.textContent?.trim() === 'Backdrop Blur') {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const enabled = !getBackdropBlur()
+      setBackdropBlur(enabled)
+      closeMenusAndFocusChat()
+    })
+  }
+})
+
 // ---- File menu actions ----
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {

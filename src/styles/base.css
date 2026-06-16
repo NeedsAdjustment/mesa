@@ -1,0 +1,11 @@
+:root {
+  --titlebar-icon-color: white;
+  --titlebar-hover-color: rgba(255, 255, 255, 0.0605);
+  --titlebar-font: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --facebook-blue: #0865fe;
+}
+
+html,
+body {
+  background: transparent;
+}
