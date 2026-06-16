@@ -17,16 +17,24 @@
   </p>
 </div>
 
-Inspired by the death of Caprine (specifically [this issue](https://github.com/sindresorhus/caprine/issues/2374)). Windows releases currently available [here](https://github.com/NeedsAdjustment/mesa/releases). MacOS next, probably.
+Inspired by the death of Caprine (specifically [this issue](https://github.com/sindresorhus/caprine/issues/2374)).
+Windows releases currently available [here](https://github.com/NeedsAdjustment/mesa/releases). MacOS next, probably.
 
 ## Features
 - Works on my machine
 - Doesn't look too terrible
 
+## 1.0 To-Do
+- Get calls working (and verify other Messenger functions work)
+- Fix themes on Windows
+- Implement front-end sidebar mechanism
+- Attain some level of confidence that the CSS selectors won't all break instantly
+
 ## Roadmap
 
 - [x] Vibrancy support *(Windows, MacOS)*
 - [x] Custom titlebar with hideable window controls *(Windows)*
+- [ ] Full Messenger functionality
 - [ ] Theming support (`dark`/`light`/`system`)
 - [ ] Robust CSS injection
 - [ ] Auto-updates *(Windows)*
