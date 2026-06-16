@@ -59,6 +59,24 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@v6.2.2
         with:
           mode: 'COMMIT'
+          toTag: ${{ github.sha }}
+          configurationJson: |
+            {
+              "categories": [
+                { "title": "## Features", "labels": ["feat"] },
+                { "title": "## Fixes", "labels": ["fix"] }
+              ],
+              "label_extractor": [
+                {
+                  "pattern": "^([a-z]+)(\\(.+\\))?!?:",
+                  "target": "$1",
+                  "on_property": "title",
+                  "method": "replace"
+                }
+              ],
+              "template": "#{{CHANGELOG}}\n<details>\n<summary>Other</summary>\n\n#{{UNCATEGORIZED}}\n</details>",
+              "empty_template": "- no changes"
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
