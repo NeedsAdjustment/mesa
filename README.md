@@ -30,7 +30,6 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 
 ### In the queue
 
-- Fix vibrancy tinting
 - Notification support
 - Implement front-end sidebar mechanism
 - Attain some level of confidence that the CSS selectors won't all break instantly
