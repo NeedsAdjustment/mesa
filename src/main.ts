@@ -1,9 +1,16 @@
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
+import { getVersion } from '@tauri-apps/api/app'
 
 const TITLEBAR_HEIGHT = 32
 
 console.info('Mesa frontend initialized')
+
+// Show the actual app version from tauri.conf.json
+getVersion().then((v) => {
+  const el = document.getElementById('app-version')
+  if (el) el.textContent = `mesa v${v}`
+})
 
 const appWindow = getCurrentWindow()
 

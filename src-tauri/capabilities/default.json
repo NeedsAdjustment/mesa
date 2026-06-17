@@ -17,6 +17,7 @@
     "core:window:allow-is-maximized",
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
-    "core:webview:allow-clear-all-browsing-data"
+    "core:webview:allow-clear-all-browsing-data",
+    "core:app:allow-version"
   ]
 }
