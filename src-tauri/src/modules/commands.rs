@@ -1,7 +1,8 @@
-use tauri::window::{Color, Effect, EffectsBuilder};
 use tauri::Manager;
 #[cfg(target_os = "macos")]
-use tauri::window::EffectState;
+use tauri::window::{Effect, EffectState, EffectsBuilder};
+#[cfg(target_os = "windows")]
+use window_vibrancy::apply_acrylic;
 
 use crate::{CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, apply_theme_to_chat};
 
@@ -93,7 +94,7 @@ pub fn set_theme(window: tauri::Window, theme: String) {
 }
 
 #[tauri::command]
-pub fn set_backdrop_blur(window: tauri::Window, enabled: bool, theme: String) {
+pub fn set_backdrop_blur(window: tauri::Window, enabled: bool) {
     if enabled {
         #[cfg(target_os = "macos")]
         let _ = window.set_effects(Some(
@@ -103,20 +104,10 @@ pub fn set_backdrop_blur(window: tauri::Window, enabled: bool, theme: String) {
                 .build(),
         ));
         #[cfg(target_os = "windows")]
-        let _ = window.set_effects(Some(
-            EffectsBuilder::new()
-                .effect(Effect::Acrylic)
-                .color(Color(18, 18, 18, 125))
-                .build(),
-        ));
+        {
+            let _ = apply_acrylic(&window, None);
+        }
     } else {
         let _ = window.set_effects(None);
-
-        let bg = if theme == "light" {
-            Color(240, 240, 240, 255)
-        } else {
-            Color(30, 30, 30, 255)
-        };
-        let _ = window.set_background_color(Some(bg));
     }
 }

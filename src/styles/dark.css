@@ -1,0 +1,36 @@
+:root {
+  --titlebar-icon-color: white;
+  --titlebar-hover-color: rgba(255, 255, 255, 0.0605);
+  --titlebar-pressed-color: rgba(255, 255, 255, 0.0419);
+}
+
+.titlebar {
+  background: #202020;
+}
+
+.dropdown {
+  background: #202020;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.menu-entry {
+  color: #fff;
+}
+
+.menu-entry:hover:not(.text):not(.inline) {
+  color: #fff;
+}
+
+.divider {
+  background: rgba(255, 255, 255, 0.0837);
+}
+
+.icon-btn {
+  border-color: rgba(255, 255, 255, 0.0837);
+  color: rgba(255, 255, 255, 0.786);
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.0605);
+}

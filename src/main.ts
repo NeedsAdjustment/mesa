@@ -200,7 +200,10 @@ function setTheme(theme: string) {
 
   if (theme === 'system') {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = () => applyTheme('system')
+    const handler = () => {
+      applyTheme('system')
+      setBackdropBlur(getBackdropBlur())
+    }
     mq.addEventListener('change', handler)
     systemThemeCleanup = () => mq.removeEventListener('change', handler)
   }
@@ -213,7 +216,12 @@ setTheme(getTheme())
 document.querySelectorAll('.theme-btn').forEach((btn) => {
   btn.addEventListener('click', (e) => {
     e.stopPropagation()
-    setTheme(btn.getAttribute('title') || 'dark')
+    const chosenTheme = btn.getAttribute('title') || 'dark'
+    // Non-system themes are incompatible with backdrop blur — turn it off
+    if (chosenTheme !== 'system' && getBackdropBlur()) {
+      setBackdropBlur(false)
+    }
+    setTheme(chosenTheme)
     closeMenusAndFocusChat()
   })
 })
@@ -236,6 +244,12 @@ function setBackdropBlur(enabled: boolean) {
   })
 
   document.documentElement.classList.toggle('backdrop-blur', enabled)
+
+  if (enabled) {
+    // Acrylic follows the OS theme, can't be themed independently
+    setTheme('system')
+  }
+
   invoke('set_backdrop_blur', { enabled, theme: resolveTheme(getTheme()) })
 }
 

@@ -10,8 +10,8 @@ use tauri_plugin_opener::open_url;
 use window_vibrancy::{NSVisualEffectMaterial, apply_acrylic, apply_vibrancy};
 
 use crate::{
-    ACRYLIC_COLOR, CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH,
-    INJECT_SCRIPT, IS_LOGGED_OUT, MESSENGER_URL, TITLEBAR_HEIGHT,
+    CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH, INJECT_SCRIPT,
+    IS_LOGGED_OUT, MESSENGER_URL, TITLEBAR_HEIGHT,
     navigation::{should_allow_navigation, should_inject_css},
 };
 
@@ -32,7 +32,7 @@ pub fn apply_platform_effects(window: &tauri::Window) {
     }
 
     #[cfg(target_os = "windows")]
-    if let Err(e) = apply_acrylic(window, Some(ACRYLIC_COLOR)) {
+    if let Err(e) = apply_acrylic(window, Some((0, 0, 0, 204))) {
         eprintln!("failed to apply acrylic effect: {e}");
     }
 }

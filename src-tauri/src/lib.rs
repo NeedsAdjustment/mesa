@@ -21,9 +21,6 @@ pub const TITLEBAR_HEIGHT: f64 = 32.;
 pub const INITIAL_WIDTH: f64 = 800.;
 pub const INITIAL_HEIGHT: f64 = 600.;
 
-#[cfg(target_os = "windows")]
-pub const ACRYLIC_COLOR: (u8, u8, u8, u8) = (18, 18, 18, 125);
-
 pub const INJECT_URLS: &[&str] = &["facebook.com/messages"];
 
 pub const ZOOM_MIN: f64 = 0.5;

@@ -1,0 +1,39 @@
+.theme-light {
+  --titlebar-icon-color: black;
+  --titlebar-hover-color: rgba(0, 0, 0, 0.0373);
+  --titlebar-pressed-color: rgba(0, 0, 0, 0.0241);
+}
+
+.theme-light .titlebar {
+  background: #f3f3f3;
+}
+
+.theme-light .dropdown {
+  background: #f3f3f3;
+  border-color: rgba(0, 0, 0, 0.0578);
+}
+
+.theme-light .menu-entry {
+  color: black;
+}
+
+.theme-light .menu-entry:hover:not(.text):not(.inline) {
+  color: black;
+}
+
+.theme-light .divider {
+  background: rgba(0, 0, 0, 0.0803);
+}
+
+.theme-light .icon-btn {
+  border-color: rgba(0, 0, 0, 0.0803);
+  color: rgba(0, 0, 0, 0.6063);
+}
+
+.theme-light .icon-btn:hover {
+  background: rgba(0, 0, 0, 0.0373);
+}
+
+.theme-light.backdrop-blur .titlebar {
+  background: transparent;
+}

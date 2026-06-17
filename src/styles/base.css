@@ -1,11 +1,15 @@
 :root {
-  --titlebar-icon-color: white;
-  --titlebar-hover-color: rgba(255, 255, 255, 0.0605);
   --titlebar-font: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   --facebook-blue: #0865fe;
+  --close-window-control-hover: #c42b1c;
+  --close-window-control-active: rgba(196, 43, 28, 0.9);
 }
 
 html,
 body {
+  background: transparent;
+}
+
+.backdrop-blur .titlebar {
   background: transparent;
 }
