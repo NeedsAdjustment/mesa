@@ -15,11 +15,11 @@
 }
 
 .menu-entry {
-  color: #fff;
+  color: white;
 }
 
 .menu-entry:hover:not(.text):not(.inline) {
-  color: #fff;
+  color: white;
 }
 
 .divider {

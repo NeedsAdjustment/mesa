@@ -1,49 +1,59 @@
+/* prevent scrollbar */
+html._9dls {
+  overflow-y: unset !important;
+}
+
+/* base styling tweaks */
+
 html,
 body,
 .__fb-light-mode,
 .__fb-dark-mode {
-  height: 100% !important;
-  overflow: hidden !important;
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  --messenger-application-max-width: none !important;
   background-color: transparent !important;
+  --messenger-card-background: #202020 !important;
+  --surface-background: #202020 !important;
   --messenger-card-spacing: 0px !important;
-  --messenger-card-background: transparent !important;
-  --surface-background: transparent !important;
-  --web-wash: transparent !important;
+  --messenger-card-corner-radius: 0px !important;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-.__fb-dark-mode::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
+.theme-light html,
+.theme-light body,
+.theme-light .__fb-light-mode,
+.theme-light .__fb-dark-mode {
+  --messenger-card-background: #f3f3f3 !important;
+  --surface-background: #f3f3f3 !important;
 }
+
+/* solid webview backgrounds */
+html:not(.backdrop-blur) {
+  background-color: #202020 !important;
+}
+
+html.theme-light:not(.backdrop-blur) {
+  background-color: #f3f3f3 !important;
+}
+
+/* remove random borders */
 
 div[aria-label='Thread list'][role='navigation'] {
-  width: unset !important;
-  min-width: 7rem !important;
-  transition: min-width 80ms ease-in-out !important;
+  box-shadow: none !important;
 }
 
-div[aria-label='Thread list'][role='navigation']:hover {
-  min-width: 45vw !important;
+div[aria-label='Thread list'][role='navigation']>div {
+  border: none !important;
 }
 
+/* add tasteful corner rounding */
+
+div[aria-labelledby^='_r_'][role='region']>div>div>div {
+  border-top-left-radius: 12px !important;
+}
+
+/* hidden items */
 div[role='progressbar'],
 div[role='banner'],
-div[aria-label='All chats'] *::-webkit-scrollbar,
-div[aria-label='Thread list'][role='navigation']:not(:hover) > div > div > *:not(:last-child),
-div[aria-label='Thread list'][role='navigation']:not(:hover) div[role='gridcell'] > div > div > div > a > div > div > *:nth-child(2),
-div[aria-label='Thread list'][role='navigation']:not(:hover)
-  div[role='gridcell']
-  > div
-  > div
-  > div
-  > div[role='button']
-  > div
-  > div
-  > *:nth-child(2) {
+div[aria-label='All chats'] *::-webkit-scrollbar {
   display: none !important;
 }
 
@@ -55,3 +65,152 @@ div.x85a59c,
 div.x1bc3s5a {
   max-height: none !important;
 }
+
+/* sidebar transparency */
+/* Only active when backdrop blur is enabled (class set by Rust on blur toggle) */
+.backdrop-blur div[aria-label='Thread list'][role='navigation'],
+.backdrop-blur div[aria-label='Thread list'][role='navigation']>div {
+  background-color: transparent !important;
+}
+
+/* tooltip styling — matches titlebar dropdown colours, theme-aware */
+div[role='tooltip'],
+div[role='tooltip'] * {
+  background-color: #202020 !important;
+  color: white !important;
+}
+
+.theme-light div[role='tooltip'],
+.theme-light div[role='tooltip'] * {
+  background-color: #f3f3f3 !important;
+  color: black !important;
+}
+
+/* sidebar chat padding */
+a[role='link'] {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* sidebar selected conversation bg colour */
+a[role='link'][aria-current='page'] {
+  background-color: var(--primary-deemphasized-button-background) !important;
+  border: 2px solid var(--primary-deemphasized-button-text) !important;
+}
+
+/* collapsed sidebar elements */
+/* TODO: instead of happening on hover, add a toggle in the menu to show/hide these permanently */
+div[aria-label='Thread list'][role='navigation']:not(:hover)>div>div>*:not(:last-child),
+div[aria-label='Thread list'][role='navigation']:not(:hover) a[role='link']>div>div>*:not(:first-child),
+div[aria-label='Thread list'][role='navigation']:not(:hover) div[role='button']>div>div>*:nth-child(2) {
+  display: none !important;
+}
+
+div[aria-label='Chats'][role='grid']>div>div>div {
+  width: auto !important;
+}
+
+div[aria-label='Thread list'][role='navigation'] {
+  width: auto !important;
+  min-width: 6rem !important;
+  transition: min-width 80ms ease-in-out !important;
+}
+
+/* show unread dot */
+div[aria-label='Thread list'][role='navigation']:not(:hover) a[role='link'][aria-current='false']:has(span.x1spa7qu)>div>div>*:last-child {
+  display: flex !important;
+  padding: 0 !important;
+}
+
+div[aria-label='Thread list'][role='navigation']:hover {
+  min-width: 45vw !important;
+}
+
+a[role='link']:not(:hover)>div>div {
+  justify-content: center !important;
+}
+
+/* ============================================
+   REFERENCE: Messenger CSS Variables
+   (captured from the web app for theming)
+   ============================================ */
+/* Chat / Composer:
+   --chat-composer-background-color
+   --chat-composer-button-color
+   --chat-composer-caret-color
+   --chat-composer-input-background-color
+   --chat-edit-message-overlay-color
+
+   Messages:
+   --chat-incoming-message-bubble-background-color
+   --chat-incoming-message-text-color
+   --chat-message-text-color
+   --chat-outgoing-message-background-gradient
+   --chat-outgoing-message-bubble-background-color
+   --chat-replied-message-background-color
+   --chat-admin-text-color
+
+   Sidebar / Navigation:
+   --mwp-header-background-color
+   --mwp-header-button-color
+   --mwp-header-text-color
+   --mwp-message-list-actions-gap
+   --mwp-message-list-actions-width
+   --mwp-message-row-background
+   --mwp-primary-theme-color
+   --mwp-subheader-text-color
+
+   Reactions:
+   --reaction-pill-background-color
+   --reaction-pill-multireact-selected-color
+
+   Scrollbar:
+   --chat-scrollbar-thumb-color
+   --chat-scrollbar-track-color
+
+   Other:
+   --text-highlight
+*/
+
+/* ============================================
+   REFERENCE: Caprine Selectors
+   (ported from the Caprine Messenger desktop app)
+   ============================================ */
+/* Navigation / Sidebar:
+   leftSidebar:              [role="navigation"]:has([role=grid]) > div > div
+   viewsMenu:                .x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x2lah0s.x193iq5w.xdj266r
+   selectedConversation:     [role="grid"] [role="row"] [role="link"][aria-current="page"]
+
+   Conversation List:
+   conversationList:         [role="navigation"]:has([role="grid"]) [role="grid"]
+   conversationSidebarSelector: [role=row]
+   conversationSidebarUnreadDot: x1i10hfl x1qjc9v5 ... (full class list)
+   conversationSidebarTextParent: html-span ... (class list)
+   conversationSidebarTextSelector: [class*="x1lliihq"][class*="x6ikm8r"][class*="x10wlt62"][class*="x1n2onr6"][class*="xlyipyv"][class*="xuxw1ft"]
+
+   Content / Messages:
+   conversationContent:       [role="log"]
+   conversationLabelSelectors: [multiple label selectors]
+
+   Notifications:
+   notificationCheckbox:     [role="dialog"] [role="switch"]
+   mutedConversation:        svg.x1tzjh5l:not(.x1k90msu)
+   muteIconNewDesign:        path[...] (bell SVG path)
+
+   User Menu / Settings:
+   userMenuNewSidebar:       [role="navigation"]:has([role=grid]) [role=button][aria-haspopup="menu"]
+   userProfileButton:        [role=banner] [role=button][aria-expanded]
+
+   Preferences / Dialogs:
+   preferencesSelector:      [role="dialog"]:has(h2)
+   closePreferencesButton:   [role="dialog"] [role="button"][aria-label]
+   conversationMenuSelectorNewDesign: [role=menu]
+
+   Right Sidebar:
+   rightSidebarMenu:         .x6s0dn4.x3nfvp2.x1fgtraw.xl56j7k.x1n2onr6.xgd8bvy
+   rightSidebarButtons:      .x9f619.x1ja2u2z.x78zum5.x2lah0s.x1n2onr6.xl56j7k.x1qjc9v5.xozqiw3.x1q0g3np.xn6708d.x1ye3gou.x1cnzs8.xdj266r.x11i5rnm.xat24cr.x1mh8g0r > div [role=button]
+
+   Legacy (no longer used):
+   chatsIcon:                [class="x9f619 ..."] a
+   userMenu:                 .qi72231t ... (legacy full class string)
+*/

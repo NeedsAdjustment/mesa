@@ -110,4 +110,15 @@ pub fn set_backdrop_blur(window: tauri::Window, enabled: bool) {
     } else {
         let _ = window.set_effects(None);
     }
+
+    // Communicate blur state to the chat webview so CSS can conditionally apply
+    // and match webview background: transparent when blur is on, titlebar colour when off
+    if let Some(chat) = window.get_webview("chat_window") {
+        let js = if enabled {
+            "document.documentElement.classList.add('backdrop-blur')"
+        } else {
+            "document.documentElement.classList.remove('backdrop-blur')"
+        };
+        let _ = chat.eval(js);
+    }
 }
