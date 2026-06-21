@@ -32,7 +32,6 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 
 - Notification support
 - Implement front-end sidebar mechanism
-- Attain some level of confidence that the CSS selectors won't all break instantly
 
 ### Roadmap
 
@@ -40,7 +39,7 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 - [x] Custom titlebar with hideable window controls _(Windows)_
 - [ ] Full `facebook.com/messages` functionality
 - [x] Theming support (`dark`/`light`/`system`)
-- [ ] (Reasonably) robust CSS injection
+- [x] (Reasonably) robust CSS injection
 - [ ] Auto-updates _(Windows)_
 - [ ] Native titlebar _(MacOS, Linux)_
 - [ ] MacOS & Linux builds
