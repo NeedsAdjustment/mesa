@@ -119,8 +119,8 @@ div[role='tooltip'] * {
 
 /* sidebar chat padding */
 a[role='link'] {
-  margin-top: 4px;
-  margin-bottom: 4px;
+  margin-top: 3px;
+  margin-bottom: 3px;
   border: 2px solid transparent !important;
 }
 

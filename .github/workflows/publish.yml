@@ -76,15 +76,13 @@ jobs:
                 { "title": "## Features", "labels": ["feat"] },
                 { "title": "## Fixes", "labels": ["fix"] },
                 { "title": "## Maintenance", "labels": ["build", "chore", "ci", "perf", "refactor", "update"] },
-                { "title": "## Documentation", "labels": ["docs"] },
-                { "title": "## Style", "labels": ["style"] }
+                { "title": "## Docs", "labels": ["docs"] }
               ],
               "label_extractor": [
                 {
-                  "pattern": "^([a-z]+)(\\(.+\\))?!?:",
+                  "pattern": "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|update){1}(\\([\\w\\-\\.]+\\))?(!)?:.*",
                   "target": "$1",
-                  "on_property": "title",
-                  "method": "extract"
+                  "on_property": "title"
                 }
               ],
               "template": "#{{CHANGELOG}}\n<details>\n<summary>Other</summary>\n\n#{{UNCATEGORIZED}}\n</details>",
