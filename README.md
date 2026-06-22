@@ -24,14 +24,15 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 ## Features
 
 - Works on my machine
-- Doesn't look too terrible
+- UI improvements and pixel-perfect design
 
 ## To do
 
 ### In the queue
 
 - Notification support
-- Implement front-end sidebar mechanism
+- Window size clamps
+- Titlebar planning for other platforms
 
 ### Roadmap
 
