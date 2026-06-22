@@ -11,7 +11,7 @@ use window_vibrancy::{NSVisualEffectMaterial, apply_acrylic, apply_vibrancy};
 
 use crate::{
     CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH, INJECT_SCRIPT,
-    IS_LOGGED_OUT, MESSENGER_URL, TITLEBAR_HEIGHT,
+    IS_LOGGED_OUT, MESSENGER_URL, SIDEBAR_RESIZE_SCRIPT, TITLEBAR_HEIGHT,
     navigation::{should_allow_navigation, should_inject_css},
 };
 
@@ -129,6 +129,7 @@ pub fn create_chat(
 
                 if should_inject_css(payload.url()) {
                     let _ = window.eval(&*INJECT_SCRIPT);
+                    let _ = window.eval(SIDEBAR_RESIZE_SCRIPT);
                 }
             }
         }),

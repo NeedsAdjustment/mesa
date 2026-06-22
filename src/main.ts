@@ -295,3 +295,43 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
+// ---- Sidebar Toggle ----
+
+const SIDEBAR_KEY = 'mesa:sidebar-collapsed'
+
+function getSidebarCollapsed(): boolean {
+  return localStorage.getItem(SIDEBAR_KEY) === 'true'
+}
+
+function setSidebarCollapsed(collapsed: boolean) {
+  localStorage.setItem(SIDEBAR_KEY, String(collapsed))
+  document.getElementById('sidebar-toggle')?.classList.toggle('active', collapsed)
+  invoke('toggle_sidebar', { collapsed })
+}
+
+// Disable sidebar toggle when the window is too narrow for a collapsed sidebar
+// (Messenger switches to full-width mobile layout around 663px)
+function updateSidebarDisabled() {
+  const narrow = window.innerWidth <= 663
+  const toggle = document.getElementById('sidebar-toggle')
+  if (!toggle) return
+  toggle.classList.toggle('disabled', narrow)
+  if (narrow && getSidebarCollapsed()) {
+    setSidebarCollapsed(false)
+  }
+  invoke('set_window_narrow', { narrow })
+}
+window.addEventListener('resize', updateSidebarDisabled)
+updateSidebarDisabled()
+
+// Initialize from saved state
+setSidebarCollapsed(getSidebarCollapsed())
+
+// Wire up the sidebar toggle button
+document.getElementById('sidebar-toggle')?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  if (document.getElementById('sidebar-toggle')?.classList.contains('disabled')) return
+  const collapsed = !getSidebarCollapsed()
+  setSidebarCollapsed(collapsed)
+})
+

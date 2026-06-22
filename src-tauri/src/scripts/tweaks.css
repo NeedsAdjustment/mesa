@@ -1,6 +1,6 @@
 /* prevent scrollbar */
 html._9dls {
-  overflow-y: unset !important;
+  overflow-y: clip !important;
 }
 
 /* base styling tweaks */
@@ -25,6 +25,10 @@ body,
   --surface-background: #f3f3f3 !important;
 }
 
+.x1diwwjn {
+  align-content: center;
+}
+
 /* solid webview backgrounds */
 html:not(.backdrop-blur) {
   background-color: #202020 !important;
@@ -37,26 +41,53 @@ html.theme-light:not(.backdrop-blur) {
 /* remove random borders */
 
 div[aria-label='Thread list'][role='navigation'] {
+  max-width: 50vw !important;
   box-shadow: none !important;
+}
+
+.narrow-window div[aria-label='Thread list'][role='navigation'] {
+  max-width: none !important;
 }
 
 div[aria-label='Thread list'][role='navigation']>div {
   border: none !important;
 }
 
-/* add tasteful corner rounding */
-
+/* add tasteful corner rounding — removed when narrow */
 div[aria-labelledby^='_r_'][role='region']>div>div>div {
   border-top-left-radius: 12px !important;
 }
 
+.narrow-window div[aria-labelledby^='_r_'][role='region']>div>div>div {
+  border-top-left-radius: 0 !important;
+}
+
 /* hidden items */
 div[role='progressbar'],
-div[role='banner'],
-div[aria-label='All chats'] *::-webkit-scrollbar {
+div[role='banner'] {
   display: none !important;
 }
 
+/* hide scrollbars in the sidebar */
+div[aria-label='Chats'][role='grid'] *,
+div[aria-label='All chats'] *,
+div[aria-label='Unread chats'] *,
+div[aria-label='Group chats'] *,
+div[aria-label='Community chats'] *,
+div[aria-label='Marketplace'] * {
+  scrollbar-width: none !important;
+}
+
+div[aria-label='Chats'][role='grid'] *::-webkit-scrollbar,
+div[aria-label='All chats'] *::-webkit-scrollbar,
+div[aria-label='Unread chats'] *::-webkit-scrollbar,
+div[aria-label='Group chats'] *::-webkit-scrollbar,
+div[aria-label='Community chats'] *::-webkit-scrollbar,
+div[aria-label='Marketplace'] *::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* removing leftover whitespace */
 div.xxzkxad {
   top: unset !important;
 }
@@ -67,10 +98,10 @@ div.x1bc3s5a {
 }
 
 /* sidebar transparency */
-/* Only active when backdrop blur is enabled (class set by Rust on blur toggle) */
-.backdrop-blur div[aria-label='Thread list'][role='navigation'],
-.backdrop-blur div[aria-label='Thread list'][role='navigation']>div {
+.backdrop-blur div[aria-label='Thread list'][role='navigation'] {
   background-color: transparent !important;
+  --surface-background: transparent !important;
+  --messenger-card-background: transparent !important;
 }
 
 /* tooltip styling — matches titlebar dropdown colours, theme-aware */
@@ -99,40 +130,49 @@ a[role='link'][aria-current='page'] {
 }
 
 /* collapsed sidebar elements */
-/* TODO: instead of happening on hover, add a toggle in the menu to show/hide these permanently */
-div[aria-label='Thread list'][role='navigation']:not(:hover)>div>div>*:not(:last-child),
-div[aria-label='Thread list'][role='navigation']:not(:hover) a[role='link']>div>div>*:not(:first-child),
-div[aria-label='Thread list'][role='navigation']:not(:hover) div[role='button']>div>div>*:nth-child(2) {
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation']>div>div>*:not(:last-child),
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'] a[role='link']>div>div>*:not(:first-child),
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'] div[role='button']>div>div>*:nth-child(2) {
   display: none !important;
 }
 
-div[aria-label='Chats'][role='grid']>div>div>div {
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'] {
+  min-width: 6rem !important;
   width: auto !important;
+  transition: min-width 100ms ease-in-out !important;
 }
 
-div[aria-label='Thread list'][role='navigation'] {
+.sidebar-collapsed div[aria-label='Chats'][role='grid']>div>div>div {
   width: auto !important;
-  min-width: 6rem !important;
-  transition: min-width 80ms ease-in-out !important;
 }
 
 /* show unread dot */
-div[aria-label='Thread list'][role='navigation']:not(:hover) a[role='link'][aria-current='false']:has(span.x1spa7qu)>div>div>*:last-child {
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'] a[role='link'][aria-current='false']:has(span.x1spa7qu)>div>div>*:last-child {
   display: flex !important;
   padding: 0 !important;
 }
 
-div[aria-label='Thread list'][role='navigation']:hover {
-  min-width: 45vw !important;
+.sidebar-collapsed a[role='link']>div>div {
+  justify-content: center !important;
+  transition: justify-content 100ms ease-in-out !important;
 }
 
-a[role='link']:not(:hover)>div>div {
-  justify-content: center !important;
+.sidebar-collapsed div[role='row']>div[data-visualcompletion='ignore'] {
+  display: none !important
+}
+
+/* sidebar resize handle — fixed-position, outside React's DOM */
+#mesa-sidebar-resize-handle {
+  transition: background 100ms ease !important;
+}
+
+#mesa-sidebar-resize-handle:hover {
+  background: rgba(128, 128, 128, 0.2) !important;
+  border-right-color: rgba(128, 128, 128, 0.5) !important;
 }
 
 /* ============================================
    REFERENCE: Messenger CSS Variables
-   (captured from the web app for theming)
    ============================================ */
 /* Chat / Composer:
    --chat-composer-background-color
@@ -174,7 +214,6 @@ a[role='link']:not(:hover)>div>div {
 
 /* ============================================
    REFERENCE: Caprine Selectors
-   (ported from the Caprine Messenger desktop app)
    ============================================ */
 /* Navigation / Sidebar:
    leftSidebar:              [role="navigation"]:has([role=grid]) > div > div

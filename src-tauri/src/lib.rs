@@ -43,6 +43,8 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
         .replace("__CSS__", &css)
 });
 
+pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
+
 // ---- Shared helpers ----
 
 pub fn apply_theme_to_chat(window: &tauri::Window, theme: &str) {
@@ -88,6 +90,8 @@ pub fn run() {
             commands::check_logged_in,
             commands::set_theme,
             commands::set_backdrop_blur,
+            commands::toggle_sidebar,
+            commands::set_window_narrow,
         ])
         .setup(|app| {
             let window = window::create_window(app)?;

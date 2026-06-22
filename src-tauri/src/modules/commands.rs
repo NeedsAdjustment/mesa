@@ -94,6 +94,30 @@ pub fn set_theme(window: tauri::Window, theme: String) {
 }
 
 #[tauri::command]
+pub fn toggle_sidebar(window: tauri::Window, collapsed: bool) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let js = if collapsed {
+            "document.documentElement.classList.add('sidebar-collapsed')"
+        } else {
+            "document.documentElement.classList.remove('sidebar-collapsed')"
+        };
+        let _ = chat.eval(js);
+    }
+}
+
+#[tauri::command]
+pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
+    if let Some(chat) = window.get_webview("chat_window") {
+        let js = if narrow {
+            "document.documentElement.classList.add('narrow-window')"
+        } else {
+            "document.documentElement.classList.remove('narrow-window')"
+        };
+        let _ = chat.eval(js);
+    }
+}
+
+#[tauri::command]
 pub fn set_backdrop_blur(window: tauri::Window, enabled: bool) {
     if enabled {
         #[cfg(target_os = "macos")]

@@ -17,13 +17,52 @@
   align-items: center;
 }
 
+/* ---- Sidebar toggle ---- */
+
+.sidebar-toggle {
+  padding: 0;
+  width: 100%;
+  padding: 4px;
+  margin-left: 3px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--titlebar-icon-color);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  background: var(--titlebar-hover-color);
+}
+
+.sidebar-toggle i {
+  pointer-events: none;
+  transform: rotate(90deg);
+}
+
+.sidebar-toggle.disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sidebar-toggle.active i.ph-tray-arrow-down {
+  display: none;
+}
+
+.sidebar-toggle:not(.active) i.ph-tray-arrow-up {
+  display: none;
+}
+
 .menu {
   position: relative;
   height: 100%;
 }
 
 .menu-trigger {
-  appearance: none;
   padding: 0 10px;
   margin: 0;
   border: none;
