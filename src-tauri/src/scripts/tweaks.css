@@ -121,12 +121,13 @@ div[role='tooltip'] * {
 a[role='link'] {
   margin-top: 4px;
   margin-bottom: 4px;
+  border: 2px solid transparent !important;
 }
 
 /* sidebar selected conversation bg colour */
 a[role='link'][aria-current='page'] {
   background-color: var(--primary-deemphasized-button-background) !important;
-  border: 2px solid var(--primary-deemphasized-button-text) !important;
+  border-color: var(--primary-deemphasized-button-text) !important;
 }
 
 /* collapsed sidebar elements */
