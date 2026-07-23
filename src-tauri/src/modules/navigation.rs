@@ -29,5 +29,6 @@ pub fn should_allow_navigation(url: &tauri::Url) -> bool {
         return true;
     }
 
+    eprintln!("[mesa] NAVIGATION DENIED: {url_str}");
     false
 }

@@ -6,12 +6,10 @@ use tauri::{
 };
 use tauri_plugin_opener::open_url;
 
-#[allow(unused_imports)]
-use window_vibrancy::{NSVisualEffectMaterial, apply_acrylic, apply_vibrancy};
-
 use crate::{
-    CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH, INJECT_SCRIPT,
-    IS_LOGGED_OUT, MESSENGER_URL, SIDEBAR_RESIZE_SCRIPT, TITLEBAR_HEIGHT,
+    BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH,
+    INJECT_SCRIPT, IS_LOGGED_OUT, MESSENGER_URL, NAV_LOGGER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
+    TITLEBAR_HEIGHT,
     navigation::{should_allow_navigation, should_inject_css},
 };
 
@@ -23,18 +21,6 @@ pub fn create_window(app: &mut tauri::App) -> Result<tauri::Window, Box<dyn std:
         .transparent(true)
         .build()?;
     Ok(window)
-}
-
-pub fn apply_platform_effects(window: &tauri::Window) {
-    #[cfg(target_os = "macos")]
-    if let Err(e) = apply_vibrancy(window, NSVisualEffectMaterial::HudWindow, None, None) {
-        eprintln!("failed to apply vibrancy effect: {e}");
-    }
-
-    #[cfg(target_os = "windows")]
-    if let Err(e) = apply_acrylic(window, Some((0, 0, 0, 204))) {
-        eprintln!("failed to apply acrylic effect: {e}");
-    }
 }
 
 pub fn create_titlebar(
@@ -59,18 +45,26 @@ pub fn create_chat(
         )
         .transparent(true)
         .initialization_script(include_str!("../scripts/theme-override.js"))
+        .initialization_script(NAV_LOGGER_SCRIPT)
         .on_navigation(|url| {
+            let url_str = url.as_str();
             if should_allow_navigation(url) {
+                eprintln!("[mesa] NAVIGATION ALLOWED: {url_str}");
                 true
             } else {
-                let _ = open_url(url.as_str(), None::<&str>);
+                eprintln!("[mesa] NAVIGATION EXTERNAL: {url_str}");
+                let _ = open_url(url_str, None::<&str>);
                 false
             }
         })
         .on_new_window(move |url, _features| {
+            let url_str = url.as_str();
+            eprintln!("[mesa] NEW WINDOW REQUESTED: {url_str}");
+
             // Open non-Messenger links in the external browser instead of a new webview
             if !should_allow_navigation(&url) {
-                let _ = open_url(url.as_str(), None::<&str>);
+                eprintln!("[mesa] NEW WINDOW -> EXTERNAL: {url_str}");
+                let _ = open_url(url_str, None::<&str>);
                 return tauri::webview::NewWindowResponse::Deny;
             }
 
@@ -118,6 +112,11 @@ pub fn create_chat(
                     let js = include_str!("../scripts/apply-theme.js")
                         .replace("__THEME_JSON__", &theme_json);
                     let _ = window.eval(&js);
+                }
+
+                // Re-apply backdrop-blur class (may have been lost on page load)
+                if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
+                    let _ = window.eval("document.documentElement.classList.add('backdrop-blur')");
                 }
 
                 // Track whether we're on a login page

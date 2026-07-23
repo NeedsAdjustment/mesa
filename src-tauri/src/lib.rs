@@ -32,6 +32,7 @@ pub const ZOOM_STEP: f64 = 0.1;
 pub static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
 pub static CALL_WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
+pub static BACKDROP_BLUR_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static CURRENT_THEME: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("dark".into()));
 
 pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
@@ -44,6 +45,7 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
 });
 
 pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
+pub static NAV_LOGGER_SCRIPT: &str = include_str!("scripts/nav-logger.js");
 
 // ---- Shared helpers ----
 
@@ -95,7 +97,6 @@ pub fn run() {
         ])
         .setup(|app| {
             let window = window::create_window(app)?;
-            window::apply_platform_effects(&window);
 
             let chat = window::create_chat(&window)?;
             let titlebar = window::create_titlebar(&window)?;

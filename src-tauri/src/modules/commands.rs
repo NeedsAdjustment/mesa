@@ -1,10 +1,11 @@
+use std::sync::atomic::Ordering;
 use tauri::Manager;
 #[cfg(target_os = "macos")]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 #[cfg(target_os = "windows")]
 use window_vibrancy::apply_acrylic;
 
-use crate::{CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, apply_theme_to_chat};
+use crate::{BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, apply_theme_to_chat};
 
 #[tauri::command]
 pub fn resize_titlebar(window: tauri::Window, height: f64) {
@@ -119,6 +120,8 @@ pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
 
 #[tauri::command]
 pub fn set_backdrop_blur(window: tauri::Window, enabled: bool) {
+    BACKDROP_BLUR_ENABLED.store(enabled, Ordering::Relaxed);
+
     if enabled {
         #[cfg(target_os = "macos")]
         let _ = window.set_effects(Some(

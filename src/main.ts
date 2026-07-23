@@ -257,7 +257,7 @@ function setBackdropBlur(enabled: boolean) {
     setTheme('system')
   }
 
-  invoke('set_backdrop_blur', { enabled, theme: resolveTheme(getTheme()) })
+  invoke('set_backdrop_blur', { enabled })
 }
 
 // Initialize from saved state
