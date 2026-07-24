@@ -45,7 +45,7 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
 });
 
 pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
-pub static NAV_LOGGER_SCRIPT: &str = include_str!("scripts/nav-logger.js");
+pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
 
 // ---- Shared helpers ----
 

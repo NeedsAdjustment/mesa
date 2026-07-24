@@ -136,11 +136,36 @@
   }
 
   function updateHandle() {
-    if (document.documentElement.classList.contains('sidebar-collapsed') || document.documentElement.classList.contains('narrow-window')) {
+    if (
+      document.documentElement.classList.contains('sidebar-collapsed') ||
+      document.documentElement.classList.contains('narrow-window') ||
+      isOverlayOpen()
+    ) {
       removeHandle()
     } else {
       createHandle()
     }
+  }
+
+  function isOverlayOpen() {
+    // Check for visible [role="menu"] dropdowns (sidebar menu, etc.)
+    var menus = document.querySelectorAll('[role="menu"]')
+    for (var i = 0; i < menus.length; i++) {
+      if (menus[i].offsetParent !== null) return true
+    }
+    // Check for full-viewport backdrops (photo viewer, preferences, etc.)
+    if (document.querySelector('div.xixxii4.x1h0vfkc')) return true
+    // Fallback: scan for any large fixed-position overlay with a non-transparent background.
+    var divs = document.querySelectorAll('div')
+    for (var i = 0; i < divs.length; i++) {
+      var d = divs[i]
+      if (d.offsetWidth < window.innerWidth / 2) continue
+      var cs = window.getComputedStyle(d)
+      if (cs.position !== 'fixed') continue
+      var bg = cs.backgroundColor
+      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return true
+    }
+    return false
   }
 
   function init() {
@@ -172,6 +197,15 @@
   classObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['class'],
+  })
+
+  // Watch for popovers (photo viewer, preferences, etc.) appearing or disappearing
+  var mediaObserver = new MutationObserver(function () {
+    updateHandle()
+  })
+  mediaObserver.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true,
   })
 
   if (document.readyState === 'loading') {

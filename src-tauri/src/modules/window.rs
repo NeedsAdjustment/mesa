@@ -8,7 +8,7 @@ use tauri_plugin_opener::open_url;
 
 use crate::{
     BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH,
-    INJECT_SCRIPT, IS_LOGGED_OUT, MESSENGER_URL, NAV_LOGGER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
+    INJECT_SCRIPT, IS_LOGGED_OUT, MESSENGER_URL, NAV_HANDLER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
     TITLEBAR_HEIGHT,
     navigation::{should_allow_navigation, should_inject_css},
 };
@@ -45,7 +45,7 @@ pub fn create_chat(
         )
         .transparent(true)
         .initialization_script(include_str!("../scripts/theme-override.js"))
-        .initialization_script(NAV_LOGGER_SCRIPT)
+        .initialization_script(NAV_HANDLER_SCRIPT)
         .on_navigation(|url| {
             let url_str = url.as_str();
             if should_allow_navigation(url) {
@@ -57,12 +57,15 @@ pub fn create_chat(
                 false
             }
         })
-        .on_new_window(move |url, _features| {
+        .on_new_window(move |url, features| {
             let url_str = url.as_str();
             eprintln!("[mesa] NEW WINDOW REQUESTED: {url_str}");
 
+            // about:blank / about:blank#blocked are used by Messenger for call popups
+            let is_call_popup = url_str == "about:blank" || url_str == "about:blank#blocked";
+
             // Open non-Messenger links in the external browser instead of a new webview
-            if !should_allow_navigation(&url) {
+            if !is_call_popup && !should_allow_navigation(&url) {
                 eprintln!("[mesa] NEW WINDOW -> EXTERNAL: {url_str}");
                 let _ = open_url(url_str, None::<&str>);
                 return tauri::webview::NewWindowResponse::Deny;
@@ -74,10 +77,16 @@ pub fn create_chat(
             let app_handle_for_nav = app_handle.clone();
             let label_for_nav = label.clone();
 
+            // Use the size from the window features if available (Messenger sets width,height
+            // via window.open(..., 'width=X,height=Y')). Fall back to main window dimensions.
+            let (width, height) = features
+                .size()
+                .map(|s| (s.width, s.height))
+                .unwrap_or((INITIAL_WIDTH, INITIAL_HEIGHT));
+
             let builder = WebviewWindowBuilder::new(&app_handle, label, WebviewUrl::External(url))
                 .title("Messenger Call")
-                .inner_size(960.0, 640.0)
-                .auto_resize()
+                .inner_size(width, height)
                 .initialization_script(include_str!("../scripts/call-window-close.js"))
                 .on_navigation(move |url| {
                     if url.as_str().contains("mesa-close") {
@@ -95,7 +104,13 @@ pub fn create_chat(
                 });
 
             match builder.build() {
-                Ok(window) => tauri::webview::NewWindowResponse::Create { window },
+                Ok(window) => {
+                    // Force the webview to match the actual window size. Without this
+                    // the webview content can render at a wider viewport than the
+                    // window, only snapping correct on manual resize.
+                    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+                    tauri::webview::NewWindowResponse::Create { window }
+                }
                 Err(e) => {
                     eprintln!("failed to create call window: {e}");
                     tauri::webview::NewWindowResponse::Deny
@@ -121,10 +136,11 @@ pub fn create_chat(
 
                 // Track whether we're on a login page
                 let url_str = payload.url().as_str();
-                IS_LOGGED_OUT.store(
-                    url_str == "about:blank" || url_str.contains("/login"),
-                    Ordering::Relaxed,
-                );
+                let is_logged_out = url_str == "about:blank" || url_str.contains("/login");
+                IS_LOGGED_OUT.store(is_logged_out, Ordering::Relaxed);
+
+                // Sync logged-out state to the nav handler script
+                let _ = window.eval(&format!("window.__mesaLoggedOut = {is_logged_out};"));
 
                 if should_inject_css(payload.url()) {
                     let _ = window.eval(&*INJECT_SCRIPT);
