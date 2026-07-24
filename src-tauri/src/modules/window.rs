@@ -16,6 +16,7 @@ use crate::{
 pub fn create_window(app: &mut tauri::App) -> Result<tauri::Window, Box<dyn std::error::Error>> {
     let window = WindowBuilder::new(app, "main")
         .inner_size(INITIAL_WIDTH, INITIAL_HEIGHT)
+        .min_inner_size(316.0, 400.0)
         .title("Mesa")
         .decorations(false)
         .transparent(true)

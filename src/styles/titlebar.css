@@ -45,8 +45,7 @@
 }
 
 .sidebar-toggle.disabled {
-  opacity: 0.3;
-  cursor: default;
+  display: none;
 }
 
 .sidebar-toggle.active i.ph-tray-arrow-down {
@@ -233,6 +232,12 @@
   font-family: var(--titlebar-font);
   font-size: 13px;
   flex-grow: 1;
+}
+
+@media (max-width: 399px) {
+  .title {
+    color: transparent;
+  }
 }
 
 /* ---- Window controls ---- */
