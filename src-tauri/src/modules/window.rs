@@ -49,6 +49,7 @@ pub fn create_chat(
         .initialization_script(NAV_HANDLER_SCRIPT)
         .on_navigation(|url| {
             let url_str = url.as_str();
+
             if should_allow_navigation(url) {
                 eprintln!("[mesa] NAVIGATION ALLOWED: {url_str}");
                 true
@@ -65,10 +66,18 @@ pub fn create_chat(
             // about:blank / about:blank#blocked are used by Messenger for call popups
             let is_call_popup = url_str == "about:blank" || url_str == "about:blank#blocked";
 
-            // Open non-Messenger links in the external browser instead of a new webview
-            if !is_call_popup && !should_allow_navigation(&url) {
-                eprintln!("[mesa] NEW WINDOW -> EXTERNAL: {url_str}");
-                let _ = open_url(url_str, None::<&str>);
+            // For non-call URLs, deny the window and route through on_navigation
+            // instead (the JS window.open interceptor should already redirect to
+            // window.location.href, but this is defense in depth).
+            if !is_call_popup {
+                let internal = should_allow_navigation(&url);
+                eprintln!(
+                    "[mesa] NEW WINDOW -> {} (denied, use navigation)",
+                    if internal { "INTERNAL" } else { "EXTERNAL" }
+                );
+                if !internal {
+                    let _ = open_url(url_str, None::<&str>);
+                }
                 return tauri::webview::NewWindowResponse::Deny;
             }
 

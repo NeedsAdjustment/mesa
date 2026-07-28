@@ -1,11 +1,15 @@
 use std::sync::atomic::Ordering;
 use tauri::Manager;
+use tauri::Url;
 #[cfg(target_os = "macos")]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 #[cfg(target_os = "windows")]
 use window_vibrancy::apply_acrylic;
 
-use crate::{BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, apply_theme_to_chat};
+use crate::{
+    BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, MESSENGER_URL,
+    apply_theme_to_chat,
+};
 
 #[tauri::command]
 pub fn resize_titlebar(window: tauri::Window, height: f64) {
@@ -70,8 +74,25 @@ pub fn show_devtools(window: tauri::Window) {
 #[tauri::command]
 pub fn logout(window: tauri::Window) {
     if let Some(chat) = window.get_webview("chat_window") {
+        // Kill the SPA by clearing the document in-place. This removes
+        // all JavaScript state and event listeners (including any
+        // beforeunload handler) without triggering a navigation.
+        let _ = chat.eval(
+            "document.open(); document.write('<!DOCTYPE html><html><body>Logging out...</body></html>'); document.close();",
+        );
+
+        // Clear all cookies and storage. The SPA is already dead so
+        // it can't detect or interfere with this.
         let _ = chat.clear_all_browsing_data();
-        let _ = chat.eval(r#"window.location.href = 'https://www.facebook.com/messages/'"#);
+
+        // Navigate to the Messenger URL using the Tauri-level API.
+        // No beforeunload to block it (SPA was killed above).
+        // Facebook sees no session cookies and redirects to /login.php,
+        // which is now in the allowlist — so the login page loads
+        // right in the webview.
+        if let Ok(url) = Url::parse(MESSENGER_URL) {
+            let _ = chat.navigate(url);
+        }
     }
 }
 

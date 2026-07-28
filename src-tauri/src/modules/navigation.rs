@@ -8,6 +8,7 @@ pub const ALLOWED_PATHS: &[&str] = &[
     "/messages",
     "/messenger_media",
     "/login",
+    "/login.php",
     "/logout",
     "/checkpoint",
     "/two_step_verification",
