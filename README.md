@@ -24,21 +24,20 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 ## Features
 
 - Works on my machine
-- UI improvements and pixel-perfect design
+- UI improvements and "pixel-perfect design"
 
 ## To do
 
 ### In the queue
 
 - Notification support
-- Window size clamps
-- Titlebar planning for other platforms
+- Windows dock mode
 
 ### Roadmap
 
 - [x] Vibrancy support _(Windows, MacOS)_
 - [x] Custom titlebar with hideable window controls _(Windows)_
-- [ ] Full `facebook.com/messages` functionality
+- [x] Full `facebook.com/messages` functionality
 - [x] Theming support (`dark`/`light`/`system`)
 - [x] (Reasonably) robust CSS injection
 - [ ] Auto-updates _(Windows)_
