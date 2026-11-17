@@ -276,29 +276,29 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
-// ---- Standardized Theme ----
+// ---- Global Theme ----
 
-function applyStandardThemeUi(enabled: boolean) {
+function applyGlobalThemeUi(enabled: boolean) {
   document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-    if (btn.textContent?.trim() === 'Standardized Theme') {
+    if (btn.textContent?.trim() === 'Global Theme') {
       btn.classList.toggle('checked', enabled)
     }
   })
 }
 
-function setStandardTheme(enabled: boolean) {
-  applyStandardThemeUi(enabled)
-  invoke('set_standard_theme', { enabled })
+function setGlobalTheme(enabled: boolean) {
+  applyGlobalThemeUi(enabled)
+  invoke('set_global_theme', { enabled })
 }
 
 // The durable value lives in Rust, so hydrate the menu from there.
-invoke<boolean>('get_standard_theme').then(applyStandardThemeUi)
+invoke<boolean>('get_global_theme').then(applyGlobalThemeUi)
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-  if (btn.textContent?.trim() === 'Standardized Theme') {
+  if (btn.textContent?.trim() === 'Global Theme') {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
-      setStandardTheme(!btn.classList.contains('checked'))
+      setGlobalTheme(!btn.classList.contains('checked'))
       closeMenusAndFocusChat()
     })
   }

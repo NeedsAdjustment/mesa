@@ -26,34 +26,74 @@ html.theme-light .__fb-dark-mode {
 }
 
 /* ============================================
-   STANDARDIZED CHAT THEME
+   GLOBAL CHAT THEME
    ============================================ */
-html.mesa-standard-theme {
+html.mesa-global-theme {
+  --mesa-accent-base: #0865fe;
+  --mesa-accent: color-mix(in srgb, var(--mesa-accent-base), white 8%);
   --mesa-chat-bg: #202020;
   --mesa-chat-surface: #202020;
   --mesa-chat-incoming: #303030;
-  --mesa-chat-outgoing: #0865fe;
+  --mesa-chat-outgoing: color-mix(in srgb, var(--mesa-accent-base), black 24%);
+  --mesa-chat-text: #f5f5f5;
+  --mesa-chat-muted: #b0b3b8;
+  --mesa-chat-border: rgba(255, 255, 255, 0.16);
+  --mesa-chat-scrollbar-thumb: rgba(255, 255, 255, 0.34);
+  --mesa-chat-scrollbar-track: transparent;
+  --mesa-chat-scrollbar-arrow: rgba(255, 255, 255, 0.55);
 }
 
-html.theme-light.mesa-standard-theme {
+html.theme-light.mesa-global-theme {
+  --mesa-accent: color-mix(in srgb, var(--mesa-accent-base), black 14%);
   --mesa-chat-bg: #f3f3f3;
   --mesa-chat-surface: #f3f3f3;
   --mesa-chat-incoming: #e4e6eb;
-  --mesa-chat-outgoing: #0865fe;
+  --mesa-chat-outgoing: color-mix(in srgb, var(--mesa-accent-base), black 24%);
+  --mesa-chat-text: #111111;
+  --mesa-chat-muted: #65676b;
+  --mesa-chat-border: rgba(0, 0, 0, 0.16);
+  --mesa-chat-scrollbar-thumb: rgba(0, 0, 0, 0.32);
+  --mesa-chat-scrollbar-track: transparent;
+  --mesa-chat-scrollbar-arrow: rgba(0, 0, 0, 0.55);
 }
 
-/* chat pane background, header and composer */
-html.mesa-standard-theme div[role='region']:has(div[role='log']) {
+/* chat pane background, header, composer and text */
+html.mesa-global-theme div[role='region']:has(div[role='log']) {
   --messenger-card-background: var(--mesa-chat-bg) !important;
   --mwp-header-background-color: var(--mesa-chat-surface) !important;
   --chat-composer-background-color: var(--mesa-chat-surface) !important;
   --mwp-message-row-background: var(--mesa-chat-bg) !important;
+  --primary-text: var(--mesa-chat-text) !important;
+  --secondary-text: var(--mesa-chat-muted) !important;
+  --primary-icon: var(--mesa-accent) !important;
+  --mwp-header-button-color: var(--mesa-accent) !important;
+  --mwp-header-text-color: var(--mesa-chat-text) !important;
+  --chat-scrollbar-thumb-color: var(--mesa-chat-scrollbar-thumb) !important;
+  --chat-scrollbar-track-color: var(--mesa-chat-scrollbar-track) !important;
+}
+
+/* header icons and composer controls */
+html.mesa-global-theme div[role='region']:has(div[role='log']) [role='button'][aria-label='Start a voice call'],
+html.mesa-global-theme div[role='region']:has(div[role='log']) [role='button'][aria-label='Start a video call'],
+html.mesa-global-theme div[role='region']:has(div[role='log']) [role='button'][aria-label='Conversation information'] {
+  --primary-icon: var(--mesa-accent) !important;
+  --mwp-header-button-color: var(--mesa-accent) !important;
+}
+
+html.mesa-global-theme div[role='region'][aria-label='Thread composer'] {
+  --primary-icon: var(--mesa-accent) !important;
+  --primary-text: var(--mesa-chat-text) !important;
+  --secondary-text: var(--mesa-chat-muted) !important;
+  --chat-composer-button-color: var(--mesa-accent) !important;
+  --chat-composer-caret-color: var(--mesa-accent) !important;
+  --chat-composer-input-background-color: transparent !important;
 }
 
 /* replace per-chat wallpapers and bubble colours */
-html.mesa-standard-theme div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
+html.mesa-global-theme div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
   background-image: none !important;
   --mwp-message-row-background: var(--mesa-chat-bg) !important;
+  --primary-icon: var(--mesa-accent) !important;
   --chat-incoming-message-bubble-background-color: var(--mesa-chat-incoming) !important;
   --chat-outgoing-message-bubble-background-color: var(--mesa-chat-outgoing) !important;
   --chat-outgoing-message-background-gradient: linear-gradient(
@@ -62,16 +102,27 @@ html.mesa-standard-theme div[role='region']:has(div[role='log']) :is(.__fb-light
   ) !important;
 }
 
+/* scrollbar colours: native bar and buttons */
+html.mesa-global-theme div[role='region']:has(div[role='log']) * {
+  scrollbar-color: var(--mesa-chat-scrollbar-thumb) var(--mesa-chat-scrollbar-track);
+}
+
 /* let the acrylic show through when backdrop blur is on */
-html.mesa-standard-theme.backdrop-blur div[role='region']:has(div[role='log']) {
+html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log']) {
   --messenger-card-background: transparent !important;
   --mwp-header-background-color: transparent !important;
   --chat-composer-background-color: transparent !important;
   --mwp-message-row-background: transparent !important;
 }
 
-html.mesa-standard-theme.backdrop-blur div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
+html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
   --mwp-message-row-background: transparent !important;
+}
+
+/* the compose bar itself, not just the region behind it */
+html.mesa-global-theme.backdrop-blur div[role='region'][aria-label='Thread composer'] div:has(> div > div > [role='textbox']) {
+  background-color: transparent !important;
+  box-shadow: inset 0 0 0 1px var(--mesa-chat-border) !important;
 }
 
 /* solid webview backgrounds */

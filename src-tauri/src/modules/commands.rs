@@ -8,8 +8,8 @@ use tauri_plugin_opener::open_path;
 use window_vibrancy::apply_acrylic;
 
 use crate::{
-    BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, MESSENGER_URL,
-    STANDARD_THEME_ENABLED, WINDOW_NARROW, apply_theme_to_chat,
+    BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, GLOBAL_THEME_ENABLED, INITIAL_WIDTH,
+    MESSENGER_URL, WINDOW_NARROW, apply_theme_to_chat,
 };
 
 #[tauri::command]
@@ -134,35 +134,81 @@ pub fn open_download(path: String) -> Result<(), String> {
     open_path(path, None::<&str>).map_err(|e| e.to_string())
 }
 
+#[cfg(target_os = "windows")]
+fn acrylic_tint() -> Option<(u8, u8, u8, u8)> {
+    if !GLOBAL_THEME_ENABLED.load(Ordering::Relaxed) {
+        return None;
+    }
+
+    let (r, g, b) = crate::accent::accent_rgb();
+    let light = CURRENT_THEME
+        .lock()
+        .map(|theme| theme.eq_ignore_ascii_case("light"))
+        .unwrap_or(false);
+    let alpha = if light { 44 } else { 64 };
+
+    Some((r, g, b, alpha))
+}
+
+fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
+    if enabled {
+        #[cfg(target_os = "macos")]
+        let _ = window.set_effects(Some(
+            EffectsBuilder::new()
+                .effect(Effect::HudWindow)
+                .state(EffectState::Active)
+                .build(),
+        ));
+        #[cfg(target_os = "windows")]
+        let _ = apply_acrylic(window, acrylic_tint());
+    } else {
+        let _ = window.set_effects(None);
+    }
+}
+
 #[tauri::command]
 pub fn set_theme(window: tauri::Window, theme: String) {
     if let Ok(mut current) = CURRENT_THEME.lock() {
         *current = theme.clone();
     }
     apply_theme_to_chat(&window, &theme);
-}
 
-#[tauri::command]
-pub fn set_standard_theme(window: tauri::Window, enabled: bool) {
-    STANDARD_THEME_ENABLED.store(enabled, Ordering::Relaxed);
-    window
-        .app_handle()
-        .state::<crate::settings::SettingsStore>()
-        .update_standard_theme(enabled);
-
-    if let Some(chat) = window.get_webview("chat_window") {
-        let js = if enabled {
-            "window.__mesaStandardTheme = true; document.documentElement.classList.add('mesa-standard-theme')"
-        } else {
-            "window.__mesaStandardTheme = false; document.documentElement.classList.remove('mesa-standard-theme')"
-        };
-        let _ = chat.eval(js);
+    if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
+        apply_blur_effect(&window, true);
     }
 }
 
 #[tauri::command]
-pub fn get_standard_theme() -> bool {
-    STANDARD_THEME_ENABLED.load(Ordering::Relaxed)
+pub fn set_global_theme(window: tauri::Window, enabled: bool) {
+    GLOBAL_THEME_ENABLED.store(enabled, Ordering::Relaxed);
+    window
+        .app_handle()
+        .state::<crate::settings::SettingsStore>()
+        .update_global_theme(enabled);
+
+    if let Some(chat) = window.get_webview("chat_window") {
+        let js = if enabled {
+            "window.__mesaGlobalTheme = true; document.documentElement.classList.add('mesa-global-theme')"
+        } else {
+            "window.__mesaGlobalTheme = false; document.documentElement.classList.remove('mesa-global-theme')"
+        };
+        let _ = chat.eval(js);
+    }
+
+    let theme = CURRENT_THEME
+        .lock()
+        .map(|theme| theme.clone())
+        .unwrap_or_else(|_| "dark".into());
+    apply_theme_to_chat(&window, &theme);
+
+    if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
+        apply_blur_effect(&window, true);
+    }
+}
+
+#[tauri::command]
+pub fn get_global_theme() -> bool {
+    GLOBAL_THEME_ENABLED.load(Ordering::Relaxed)
 }
 
 #[tauri::command]
@@ -182,22 +228,7 @@ pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
 #[tauri::command]
 pub fn set_backdrop_blur(window: tauri::Window, enabled: bool) {
     BACKDROP_BLUR_ENABLED.store(enabled, Ordering::Relaxed);
-
-    if enabled {
-        #[cfg(target_os = "macos")]
-        let _ = window.set_effects(Some(
-            EffectsBuilder::new()
-                .effect(Effect::HudWindow)
-                .state(EffectState::Active)
-                .build(),
-        ));
-        #[cfg(target_os = "windows")]
-        {
-            let _ = apply_acrylic(&window, None);
-        }
-    } else {
-        let _ = window.set_effects(None);
-    }
+    apply_blur_effect(&window, enabled);
 
     // Communicate blur state to the chat webview so CSS can conditionally apply
     // and match webview background: transparent when blur is on, titlebar colour when off

@@ -5,6 +5,7 @@ use tauri::Manager;
 use tauri_plugin_global_shortcut::ShortcutState;
 
 mod modules;
+pub use modules::accent;
 pub use modules::commands;
 pub use modules::navigation;
 pub use modules::settings;
@@ -34,7 +35,7 @@ pub static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
 pub static IS_LOGGING_OUT: AtomicBool = AtomicBool::new(false);
 pub static BACKDROP_BLUR_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static WINDOW_NARROW: AtomicBool = AtomicBool::new(false);
-pub static STANDARD_THEME_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static GLOBAL_THEME_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static CURRENT_THEME: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("dark".into()));
 
 pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
@@ -51,13 +52,25 @@ pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
 
 // ---- Shared helpers ----
 
+pub fn apply_theme_script(theme: &str) -> String {
+    let theme_json = serde_json::value::to_value(theme)
+        .map(|v| v.to_string())
+        .unwrap_or_else(|_| "\"dark\"".into());
+    let accent = if GLOBAL_THEME_ENABLED.load(Ordering::Relaxed) {
+        accent::accent_rgb()
+    } else {
+        accent::FALLBACK_ACCENT
+    };
+    let accent_json = format!("\"#{:02x}{:02x}{:02x}\"", accent.0, accent.1, accent.2);
+
+    include_str!("scripts/apply-theme.js")
+        .replace("__THEME_JSON__", &theme_json)
+        .replace("__ACCENT_JSON__", &accent_json)
+}
+
 pub fn apply_theme_to_chat(window: &tauri::Window, theme: &str) {
     if let Some(chat) = window.get_webview("chat_window") {
-        let theme_json = serde_json::value::to_value(theme)
-            .map(|v| v.to_string())
-            .unwrap_or_else(|_| "\"dark\"".into());
-        let js = include_str!("scripts/apply-theme.js").replace("__THEME_JSON__", &theme_json);
-        let _ = chat.eval(&js);
+        let _ = chat.eval(apply_theme_script(theme));
     }
 }
 
@@ -96,20 +109,20 @@ pub fn run() {
             commands::open_download,
             commands::set_theme,
             commands::set_backdrop_blur,
-            commands::set_standard_theme,
-            commands::get_standard_theme,
+            commands::set_global_theme,
+            commands::get_global_theme,
             commands::set_window_narrow,
         ])
         .setup(|app| {
             let settings = settings::SettingsStore::load(app.handle());
             let sidebar = settings.sidebar();
-            let standard_theme = settings.standard_theme();
-            STANDARD_THEME_ENABLED.store(standard_theme, Ordering::Relaxed);
+            let global_theme = settings.global_theme();
+            GLOBAL_THEME_ENABLED.store(global_theme, Ordering::Relaxed);
             app.manage(settings);
 
             let window = window::create_window(app)?;
 
-            let chat = window::create_chat(&window, &sidebar, standard_theme)?;
+            let chat = window::create_chat(&window, &sidebar, global_theme)?;
             let titlebar = window::create_titlebar(&window)?;
 
             window::apply_layout(&window, &titlebar, &chat);

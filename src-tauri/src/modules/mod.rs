@@ -1,3 +1,4 @@
+pub mod accent;
 pub mod commands;
 pub mod navigation;
 pub mod settings;

@@ -95,7 +95,7 @@
 
     const root = document.documentElement
     if (root) {
-      root.classList.toggle('mesa-standard-theme', !!window.__mesaStandardTheme)
+      root.classList.toggle('mesa-global-theme', !!window.__mesaGlobalTheme)
     }
 
     // Older injections used a document-wide MutationObserver. It can stall
