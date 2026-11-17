@@ -129,6 +129,15 @@ html.mesa-global-theme div[role='region']:has(div[role='log']) [role='img'][aria
   fill: var(--mesa-accent) !important;
 }
 
+/* message hover actions */
+html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] {
+  --primary-icon: var(--mesa-accent) !important;
+}
+
+html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] [role='button'] {
+  background-color: var(--mesa-chat-reply-bg) !important;
+}
+
 /* draft labels in the sidebar use the accent when the window is translucent */
 html.mesa-global-theme.backdrop-blur div[aria-label='Chats'][role='grid'] span.mesa-draft-label {
   color: var(--mesa-accent) !important;
