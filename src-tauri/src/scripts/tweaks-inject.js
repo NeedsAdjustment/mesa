@@ -13,7 +13,6 @@
 
   const styleId = __STYLE_ID__
   const css = __CSS__
-  let emptyChatFrame = 0
 
   const ensureEmptyChat = () => {
     const main = document.querySelector("div[role='main']")
@@ -54,15 +53,17 @@
     }
   }
 
-  const scheduleEmptyChat = () => {
-    if (emptyChatFrame) return
-    emptyChatFrame = requestAnimationFrame(() => {
-      emptyChatFrame = 0
-      ensureEmptyChat()
-    })
+  const runMaintenance = () => {
+    ensureStyle()
+    ensureEmptyChat()
   }
 
-  const ensureStyleLast = () => {
+  const startMaintenance = () => {
+    if (window.__mesaMaintenanceTimer) return
+    window.__mesaMaintenanceTimer = setInterval(runMaintenance, 500)
+  }
+
+  const ensureStyle = () => {
     const root = document.documentElement
     if (!root) return false
 
@@ -82,7 +83,7 @@
       style.textContent = css
     }
 
-    if (style.parentNode !== head || head.lastElementChild !== style) {
+    if (style.parentNode !== head) {
       head.appendChild(style)
     }
 
@@ -90,26 +91,28 @@
   }
 
   const install = () => {
-    if (!ensureStyleLast()) return false
+    if (!ensureStyle()) return false
 
     const root = document.documentElement
     if (root) {
       root.classList.toggle('mesa-standard-theme', !!window.__mesaStandardTheme)
     }
 
-    if (!window.__mesaCssObserver) {
-      window.__mesaCssObserver = new MutationObserver(() => {
-        ensureStyleLast()
-        scheduleEmptyChat()
-      })
-      window.__mesaCssObserver.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      })
+    // Older injections used a document-wide MutationObserver. It can stall
+    // Messenger's E2EE conversation renderer, so remove it if still present.
+    if (window.__mesaCssObserver) {
+      window.__mesaCssObserver.disconnect()
+      window.__mesaCssObserver = null
+    }
+
+    startMaintenance()
+    runMaintenance()
+
+    if (!window.__mesaTweaksInstalled) {
+      window.__mesaTweaksInstalled = true
       console.log('[mesa] tweaks: custom CSS installed at', location.href)
     }
 
-    scheduleEmptyChat()
     return true
   }
 
