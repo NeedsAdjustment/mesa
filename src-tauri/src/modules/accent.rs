@@ -215,18 +215,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hsl_round_trip_keeps_a_green_hue() {
-        let (r, g, b) = hsl_to_rgb(135.0, 0.5, 0.56);
-        let (hue, saturation, lightness) = rgb_to_hsl(r, g, b);
+    fn hsl_round_trip_preserves_hue_and_saturation() {
+        const SATURATION: f32 = 0.5;
+        const LIGHTNESS: f32 = 0.56;
 
-        assert!((hue - 135.0).abs() < 1.0);
-        assert!((saturation - 0.5).abs() < 0.01);
-        assert!((lightness - 0.56).abs() < 0.01);
+        for expected_hue in [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0] {
+            let (r, g, b) = hsl_to_rgb(expected_hue, SATURATION, LIGHTNESS);
+            let (hue, saturation, lightness) = rgb_to_hsl(r, g, b);
+
+            assert!(
+                (hue - expected_hue).abs() < 1.0,
+                "hue {expected_hue} became {hue}"
+            );
+            assert!(
+                (saturation - SATURATION).abs() < 0.01,
+                "saturation for hue {expected_hue} became {saturation}"
+            );
+            assert!(
+                (lightness - LIGHTNESS).abs() < 0.01,
+                "lightness for hue {expected_hue} became {lightness}"
+            );
+        }
     }
 
     #[test]
-    fn fallback_accent_is_always_usable() {
+    fn fallback_accent_is_mesa_blue_and_usable() {
+        assert_eq!(FALLBACK_ACCENT, (8, 101, 254));
+
         let (r, g, b) = FALLBACK_ACCENT;
-        assert!(r > 0 || g > 0 || b > 0);
+        let (_, saturation, lightness) =
+            rgb_to_hsl(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0);
+
+        assert!(saturation > 0.5, "fallback should stay saturated");
+        assert!(
+            (0.3..=0.7).contains(&lightness),
+            "fallback should stay legible"
+        );
     }
 }
