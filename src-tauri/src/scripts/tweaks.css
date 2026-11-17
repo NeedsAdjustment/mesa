@@ -138,6 +138,17 @@ html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] [role='but
   background-color: var(--mesa-chat-reply-bg) !important;
 }
 
+html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] [role='presentation'] {
+  gap: 4px !important;
+}
+
+html.mesa-global-theme [role='toolbar'][aria-label='Message actions'],
+html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] > [role='presentation'],
+html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] > [role='presentation'] > [role='presentation'] {
+  width: auto !important;
+  min-width: max-content !important;
+}
+
 /* draft labels in the sidebar use the accent when the window is translucent */
 html.mesa-global-theme.backdrop-blur div[aria-label='Chats'][role='grid'] span.mesa-draft-label {
   color: var(--mesa-accent) !important;
