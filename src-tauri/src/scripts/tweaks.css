@@ -47,11 +47,13 @@ html.mesa-standard-theme div[role='region']:has(div[role='log']) {
   --messenger-card-background: var(--mesa-chat-bg) !important;
   --mwp-header-background-color: var(--mesa-chat-surface) !important;
   --chat-composer-background-color: var(--mesa-chat-surface) !important;
+  --mwp-message-row-background: var(--mesa-chat-bg) !important;
 }
 
 /* replace per-chat wallpapers and bubble colours */
 html.mesa-standard-theme div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
   background-image: none !important;
+  --mwp-message-row-background: var(--mesa-chat-bg) !important;
   --chat-incoming-message-bubble-background-color: var(--mesa-chat-incoming) !important;
   --chat-outgoing-message-bubble-background-color: var(--mesa-chat-outgoing) !important;
   --chat-outgoing-message-background-gradient: linear-gradient(
@@ -65,6 +67,11 @@ html.mesa-standard-theme.backdrop-blur div[role='region']:has(div[role='log']) {
   --messenger-card-background: transparent !important;
   --mwp-header-background-color: transparent !important;
   --chat-composer-background-color: transparent !important;
+  --mwp-message-row-background: transparent !important;
+}
+
+html.mesa-standard-theme.backdrop-blur div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
+  --mwp-message-row-background: transparent !important;
 }
 
 /* solid webview backgrounds */
