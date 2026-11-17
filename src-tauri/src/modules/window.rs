@@ -9,7 +9,7 @@ use tauri_plugin_opener::open_url;
 use crate::{
     BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH,
     INJECT_SCRIPT, IS_LOGGED_OUT, IS_LOGGING_OUT, MESSENGER_URL, NAV_HANDLER_SCRIPT,
-    SIDEBAR_RESIZE_SCRIPT, TITLEBAR_HEIGHT, WINDOW_NARROW,
+    SIDEBAR_RESIZE_SCRIPT, STANDARD_THEME_ENABLED, TITLEBAR_HEIGHT, WINDOW_NARROW,
     navigation::{
         NavigationAction, is_blank_url, is_call_url, is_internal_url, is_messages_page,
         navigation_action,
@@ -54,12 +54,14 @@ fn download_filename(url: &tauri::Url, path: Option<&std::path::Path>) -> String
 pub fn create_chat(
     window: &tauri::Window,
     sidebar: &SidebarSettings,
+    standard_theme: bool,
 ) -> Result<tauri::webview::Webview, Box<dyn std::error::Error>> {
     let app_handle = window.app_handle().clone();
     let download_app_handle = app_handle.clone();
     let sidebar_app_handle = app_handle.clone();
     let sidebar_state_json = serde_json::to_string(sidebar).unwrap_or_else(|_| "null".to_string());
     let sidebar_state_script = format!("window.__mesaSidebarState = {sidebar_state_json};");
+    let standard_theme_script = format!("window.__mesaStandardTheme = {standard_theme};");
     let chat = window.add_child(
         WebviewBuilder::new(
             "chat_window",
@@ -69,6 +71,7 @@ pub fn create_chat(
         .initialization_script(include_str!("../scripts/theme-override.js"))
         .initialization_script(NAV_HANDLER_SCRIPT)
         .initialization_script(sidebar_state_script)
+        .initialization_script(standard_theme_script)
         // Inject the styling at document-start so the page is never painted
         // unstyled. The script itself is a no-op outside Messenger.
         .initialization_script(INJECT_SCRIPT.as_str())
@@ -250,9 +253,12 @@ pub fn create_chat(
                 let url_str = payload.url().as_str();
                 let blur = BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed);
                 let narrow = WINDOW_NARROW.load(Ordering::Relaxed);
+                let standard_theme = STANDARD_THEME_ENABLED.load(Ordering::Relaxed);
                 let _ = window.eval(format!(
-                    "document.documentElement.classList.toggle('backdrop-blur', {blur});\
-                     document.documentElement.classList.toggle('narrow-window', {narrow});"
+                    "window.__mesaStandardTheme = {standard_theme};\
+                     document.documentElement.classList.toggle('backdrop-blur', {blur});\
+                     document.documentElement.classList.toggle('narrow-window', {narrow});\
+                     document.documentElement.classList.toggle('mesa-standard-theme', {standard_theme});"
                 ));
 
                 // Fallback for the document-start injection hooks. Both scripts

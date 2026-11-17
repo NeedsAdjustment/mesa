@@ -276,6 +276,34 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
+// ---- Standardized Theme ----
+
+function applyStandardThemeUi(enabled: boolean) {
+  document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
+    if (btn.textContent?.trim() === 'Standardized Theme') {
+      btn.classList.toggle('checked', enabled)
+    }
+  })
+}
+
+function setStandardTheme(enabled: boolean) {
+  applyStandardThemeUi(enabled)
+  invoke('set_standard_theme', { enabled })
+}
+
+// The durable value lives in Rust, so hydrate the menu from there.
+invoke<boolean>('get_standard_theme').then(applyStandardThemeUi)
+
+document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
+  if (btn.textContent?.trim() === 'Standardized Theme') {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      setStandardTheme(!btn.classList.contains('checked'))
+      closeMenusAndFocusChat()
+    })
+  }
+})
+
 // ---- File menu actions ----
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {

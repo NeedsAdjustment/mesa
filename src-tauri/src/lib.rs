@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU32};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 
 use tauri::Manager;
@@ -34,6 +34,7 @@ pub static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
 pub static IS_LOGGING_OUT: AtomicBool = AtomicBool::new(false);
 pub static BACKDROP_BLUR_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static WINDOW_NARROW: AtomicBool = AtomicBool::new(false);
+pub static STANDARD_THEME_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static CURRENT_THEME: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("dark".into()));
 
 pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
@@ -95,16 +96,20 @@ pub fn run() {
             commands::open_download,
             commands::set_theme,
             commands::set_backdrop_blur,
+            commands::set_standard_theme,
+            commands::get_standard_theme,
             commands::set_window_narrow,
         ])
         .setup(|app| {
             let settings = settings::SettingsStore::load(app.handle());
             let sidebar = settings.sidebar();
+            let standard_theme = settings.standard_theme();
+            STANDARD_THEME_ENABLED.store(standard_theme, Ordering::Relaxed);
             app.manage(settings);
 
             let window = window::create_window(app)?;
 
-            let chat = window::create_chat(&window, &sidebar)?;
+            let chat = window::create_chat(&window, &sidebar, standard_theme)?;
             let titlebar = window::create_titlebar(&window)?;
 
             window::apply_layout(&window, &titlebar, &chat);

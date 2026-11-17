@@ -17,16 +17,54 @@ body,
   --messenger-card-corner-radius: 0px !important;
 }
 
-.theme-light html,
-.theme-light body,
-.theme-light .__fb-light-mode,
-.theme-light .__fb-dark-mode {
+html.theme-light,
+html.theme-light body,
+html.theme-light .__fb-light-mode,
+html.theme-light .__fb-dark-mode {
   --messenger-card-background: #f3f3f3 !important;
   --surface-background: #f3f3f3 !important;
 }
 
-.x1diwwjn {
-  align-content: center;
+/* ============================================
+   STANDARDIZED CHAT THEME
+   ============================================ */
+html.mesa-standard-theme {
+  --mesa-chat-bg: #202020;
+  --mesa-chat-surface: #202020;
+  --mesa-chat-incoming: #303030;
+  --mesa-chat-outgoing: #0865fe;
+}
+
+html.theme-light.mesa-standard-theme {
+  --mesa-chat-bg: #f3f3f3;
+  --mesa-chat-surface: #f3f3f3;
+  --mesa-chat-incoming: #e4e6eb;
+  --mesa-chat-outgoing: #0865fe;
+}
+
+/* chat pane background, header and composer */
+html.mesa-standard-theme div[role='region']:has(div[role='log']) {
+  --messenger-card-background: var(--mesa-chat-bg) !important;
+  --mwp-header-background-color: var(--mesa-chat-surface) !important;
+  --chat-composer-background-color: var(--mesa-chat-surface) !important;
+}
+
+/* replace per-chat wallpapers and bubble colours */
+html.mesa-standard-theme div[role='region']:has(div[role='log']) :is(.__fb-light-mode, .__fb-dark-mode) {
+  background-image: none !important;
+  --chat-incoming-message-bubble-background-color: var(--mesa-chat-incoming) !important;
+  --chat-outgoing-message-bubble-background-color: var(--mesa-chat-outgoing) !important;
+  --chat-outgoing-message-background-gradient: linear-gradient(
+    var(--mesa-chat-outgoing),
+    var(--mesa-chat-outgoing)
+  ) !important;
+}
+
+/* let the acrylic show through when backdrop blur is on */
+html.mesa-standard-theme.backdrop-blur div[role='region']:has(div[role='log']) {
+  --messenger-card-background: transparent !important;
+  --mwp-header-background-color: transparent !important;
+  --chat-composer-background-color: transparent !important;
 }
 
 /* solid webview backgrounds */
@@ -54,11 +92,11 @@ div[aria-label='Thread list'][role='navigation']>div {
 }
 
 /* add tasteful corner rounding — removed when narrow */
-div[aria-labelledby^='_r_'][role='region']>div>div>div {
+div[role='region']:has(div[role='log'])>div>div>div {
   border-top-left-radius: 12px !important;
 }
 
-.narrow-window div[aria-labelledby^='_r_'][role='region']>div>div>div {
+.narrow-window div[role='region']:has(div[role='log'])>div>div>div {
   border-top-left-radius: 0 !important;
 }
 
@@ -69,21 +107,11 @@ div[role='banner'] {
 }
 
 /* hide scrollbars in the sidebar */
-div[aria-label='Chats'][role='grid'] *,
-div[aria-label='All chats'] *,
-div[aria-label='Unread chats'] *,
-div[aria-label='Group chats'] *,
-div[aria-label='Community chats'] *,
-div[aria-label='Marketplace'] * {
+div[aria-label='Chats'][role='grid'] * {
   scrollbar-width: none !important;
 }
 
-div[aria-label='Chats'][role='grid'] *::-webkit-scrollbar,
-div[aria-label='All chats'] *::-webkit-scrollbar,
-div[aria-label='Unread chats'] *::-webkit-scrollbar,
-div[aria-label='Group chats'] *::-webkit-scrollbar,
-div[aria-label='Community chats'] *::-webkit-scrollbar,
-div[aria-label='Marketplace'] *::-webkit-scrollbar {
+div[aria-label='Chats'][role='grid'] *::-webkit-scrollbar {
   display: none !important;
 }
 
@@ -118,14 +146,14 @@ div[role='tooltip'] * {
 }
 
 /* sidebar chat padding */
-a[role='link'] {
+div[aria-label='Chats'][role='grid'] a[role='link'] {
   margin-top: 3px;
   margin-bottom: 3px;
   border: 2px solid transparent !important;
 }
 
 /* sidebar selected conversation bg colour */
-a[role='link'][aria-current='page'] {
+div[aria-label='Chats'][role='grid'] a[role='link'][aria-current='page'] {
   background-color: var(--primary-deemphasized-button-background) !important;
   border-color: var(--primary-deemphasized-button-text) !important;
 }
@@ -158,7 +186,7 @@ a[role='link'][aria-current='page'] {
   transition: justify-content 100ms ease-in-out !important;
 }
 
-.sidebar-collapsed div[role='row']>div[data-visualcompletion='ignore'] {
+.sidebar-collapsed div[aria-label='Chats'][role='grid'] div[role='row']>div[data-visualcompletion='ignore'] {
   display: none !important
 }
 

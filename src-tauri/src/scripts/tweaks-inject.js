@@ -92,6 +92,11 @@
   const install = () => {
     if (!ensureStyleLast()) return false
 
+    const root = document.documentElement
+    if (root) {
+      root.classList.toggle('mesa-standard-theme', !!window.__mesaStandardTheme)
+    }
+
     if (!window.__mesaCssObserver) {
       window.__mesaCssObserver = new MutationObserver(() => {
         ensureStyleLast()

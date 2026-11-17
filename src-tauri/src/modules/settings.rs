@@ -18,6 +18,8 @@ pub struct SidebarSettings {
 struct SettingsFile {
     #[serde(default)]
     sidebar: SidebarSettings,
+    #[serde(default)]
+    standard_theme: bool,
 }
 
 pub struct SettingsStore {
@@ -67,6 +69,27 @@ impl SettingsStore {
         true
     }
 
+    pub fn standard_theme(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|settings| settings.standard_theme)
+            .unwrap_or(false)
+    }
+
+    pub fn update_standard_theme(&self, enabled: bool) -> bool {
+        let Ok(mut settings) = self.inner.lock() else {
+            return false;
+        };
+
+        if settings.standard_theme == enabled {
+            return false;
+        }
+
+        settings.standard_theme = enabled;
+        self.save(&settings);
+        true
+    }
+
     fn save(&self, settings: &SettingsFile) {
         let Some(path) = &self.path else {
             return;
@@ -101,6 +124,7 @@ mod tests {
                 width: Some(280),
                 collapsed: true,
             },
+            standard_theme: true,
         };
 
         let json = serde_json::to_string(&settings).expect("serialize settings");
@@ -108,6 +132,7 @@ mod tests {
 
         assert_eq!(parsed.sidebar.width, Some(280));
         assert!(parsed.sidebar.collapsed);
+        assert!(parsed.standard_theme);
     }
 
     #[test]
@@ -115,5 +140,6 @@ mod tests {
         let parsed: SettingsFile = serde_json::from_str("{}").expect("deserialize empty settings");
         assert_eq!(parsed.sidebar.width, None);
         assert!(!parsed.sidebar.collapsed);
+        assert!(!parsed.standard_theme);
     }
 }

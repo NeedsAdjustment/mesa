@@ -9,7 +9,7 @@ use window_vibrancy::apply_acrylic;
 
 use crate::{
     BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, MESSENGER_URL,
-    WINDOW_NARROW, apply_theme_to_chat,
+    STANDARD_THEME_ENABLED, WINDOW_NARROW, apply_theme_to_chat,
 };
 
 #[tauri::command]
@@ -140,6 +140,29 @@ pub fn set_theme(window: tauri::Window, theme: String) {
         *current = theme.clone();
     }
     apply_theme_to_chat(&window, &theme);
+}
+
+#[tauri::command]
+pub fn set_standard_theme(window: tauri::Window, enabled: bool) {
+    STANDARD_THEME_ENABLED.store(enabled, Ordering::Relaxed);
+    window
+        .app_handle()
+        .state::<crate::settings::SettingsStore>()
+        .update_standard_theme(enabled);
+
+    if let Some(chat) = window.get_webview("chat_window") {
+        let js = if enabled {
+            "window.__mesaStandardTheme = true; document.documentElement.classList.add('mesa-standard-theme')"
+        } else {
+            "window.__mesaStandardTheme = false; document.documentElement.classList.remove('mesa-standard-theme')"
+        };
+        let _ = chat.eval(js);
+    }
+}
+
+#[tauri::command]
+pub fn get_standard_theme() -> bool {
+    STANDARD_THEME_ENABLED.load(Ordering::Relaxed)
 }
 
 #[tauri::command]
