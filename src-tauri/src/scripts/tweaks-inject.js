@@ -13,6 +13,54 @@
 
   const styleId = __STYLE_ID__
   const css = __CSS__
+  let emptyChatFrame = 0
+
+  const ensureEmptyChat = () => {
+    const main = document.querySelector("div[role='main']")
+    if (!main) return
+
+    const icon = main.querySelector("i[data-visualcompletion='css-img']")
+    const heading = main.querySelector('h3')
+    const log = main.querySelector("[role='log']")
+    const isEmpty =
+      !log &&
+      !!icon &&
+      !!heading &&
+      /no chats? selected|select a chat|choose a chat/i.test(heading.innerText || '')
+
+    if (!isEmpty) {
+      main.querySelectorAll('.mesa-empty-chat').forEach((el) => {
+        el.classList.remove('mesa-empty-chat')
+      })
+      main.querySelectorAll('i.mesa-empty-icon').forEach((el) => {
+        el.classList.remove('mesa-empty-icon')
+      })
+      return
+    }
+
+    const marked = main.querySelector('.mesa-empty-chat')
+    if (icon.classList.contains('mesa-empty-icon') && marked) return
+
+    icon.classList.add('mesa-empty-icon')
+
+    let node = icon.parentElement
+    while (node && node !== main) {
+      const background = window.getComputedStyle(node).backgroundColor
+      if (background && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') {
+        node.classList.add('mesa-empty-chat')
+        break
+      }
+      node = node.parentElement
+    }
+  }
+
+  const scheduleEmptyChat = () => {
+    if (emptyChatFrame) return
+    emptyChatFrame = requestAnimationFrame(() => {
+      emptyChatFrame = 0
+      ensureEmptyChat()
+    })
+  }
 
   const ensureStyleLast = () => {
     const root = document.documentElement
@@ -45,7 +93,10 @@
     if (!ensureStyleLast()) return false
 
     if (!window.__mesaCssObserver) {
-      window.__mesaCssObserver = new MutationObserver(() => ensureStyleLast())
+      window.__mesaCssObserver = new MutationObserver(() => {
+        ensureStyleLast()
+        scheduleEmptyChat()
+      })
       window.__mesaCssObserver.observe(document.documentElement, {
         childList: true,
         subtree: true,
@@ -53,6 +104,7 @@
       console.log('[mesa] tweaks: custom CSS installed at', location.href)
     }
 
+    scheduleEmptyChat()
     return true
   }
 
