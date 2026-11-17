@@ -24,13 +24,19 @@
   var lastTargetWidth = 0
   var lastCollapsed = false
   var snapToken = 0
+  var injectedState = window.__mesaSidebarState || null
   var resizeObserver = new ResizeObserver(function () {
     syncHandlePosition()
   })
 
-  // The chat document owns the collapsed state. This survives full page loads
-  // without waiting for the titlebar/Rust to send it back.
-  if (localStorage.getItem(COLLAPSED_KEY) === 'true') {
+  // The chat document owns the live state. The injected copy is a durable
+  // fallback for the first paint after logout clears site data.
+  var storedCollapsed = localStorage.getItem(COLLAPSED_KEY)
+  var initialCollapsed =
+    storedCollapsed !== null
+      ? storedCollapsed === 'true'
+      : !!(injectedState && injectedState.collapsed)
+  if (initialCollapsed) {
     document.documentElement.classList.add('sidebar-collapsed')
   }
   lastCollapsed = isCollapsed()
@@ -47,7 +53,17 @@
 
   function getSavedWidth() {
     var w = localStorage.getItem(WIDTH_KEY)
-    return w ? parseFloat(w) : null
+    if (w) return parseFloat(w)
+
+    if (
+      injectedState &&
+      typeof injectedState.width === 'number' &&
+      injectedState.width > 0
+    ) {
+      return injectedState.width
+    }
+
+    return null
   }
 
   function saveWidth(w) {
@@ -286,6 +302,35 @@
       createHandle()
     }
   }
+
+  function applySidebarState(state) {
+    if (!state) return
+
+    // Existing chat storage is the live state and is always at least as new as
+    // the app-level copy. Only fill in values that were cleared (e.g. logout).
+    var storedWidth = localStorage.getItem(WIDTH_KEY)
+    var storedCollapsed = localStorage.getItem(COLLAPSED_KEY)
+    var width = storedWidth !== null ? parseFloat(storedWidth) : Number(state.width)
+    var collapsed =
+      storedCollapsed !== null ? storedCollapsed === 'true' : !!state.collapsed
+
+    try {
+      if (storedWidth === null && Number.isFinite(width) && width > 0) {
+        localStorage.setItem(WIDTH_KEY, String(Math.round(width)))
+      }
+      if (storedCollapsed === null) {
+        localStorage.setItem(COLLAPSED_KEY, String(collapsed))
+      }
+    } catch (_) {}
+
+    document.documentElement.classList.toggle('sidebar-collapsed', collapsed)
+    applySavedWidth()
+    updateHandle()
+  }
+
+  // Called from Rust after page load so the durable app-level settings win
+  // over any stale injected/localStorage values.
+  window.__mesaApplySidebarState = applySidebarState
 
   function isOverlayOpen() {
     // Check for visible [role="menu"] dropdowns (sidebar menu, etc.)

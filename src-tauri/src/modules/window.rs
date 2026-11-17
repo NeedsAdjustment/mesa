@@ -8,12 +8,13 @@ use tauri_plugin_opener::open_url;
 
 use crate::{
     BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, INITIAL_HEIGHT, INITIAL_WIDTH,
-    INJECT_SCRIPT, IS_LOGGED_OUT, MESSENGER_URL, NAV_HANDLER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
-    TITLEBAR_HEIGHT, WINDOW_NARROW,
+    INJECT_SCRIPT, IS_LOGGED_OUT, IS_LOGGING_OUT, MESSENGER_URL, NAV_HANDLER_SCRIPT,
+    SIDEBAR_RESIZE_SCRIPT, TITLEBAR_HEIGHT, WINDOW_NARROW,
     navigation::{
         NavigationAction, is_blank_url, is_call_url, is_internal_url, is_messages_page,
         navigation_action,
     },
+    settings::{SettingsStore, SidebarSettings},
 };
 
 pub fn create_window(app: &mut tauri::App) -> Result<tauri::Window, Box<dyn std::error::Error>> {
@@ -52,9 +53,13 @@ fn download_filename(url: &tauri::Url, path: Option<&std::path::Path>) -> String
 
 pub fn create_chat(
     window: &tauri::Window,
+    sidebar: &SidebarSettings,
 ) -> Result<tauri::webview::Webview, Box<dyn std::error::Error>> {
     let app_handle = window.app_handle().clone();
     let download_app_handle = app_handle.clone();
+    let sidebar_app_handle = app_handle.clone();
+    let sidebar_state_json = serde_json::to_string(sidebar).unwrap_or_else(|_| "null".to_string());
+    let sidebar_state_script = format!("window.__mesaSidebarState = {sidebar_state_json};");
     let chat = window.add_child(
         WebviewBuilder::new(
             "chat_window",
@@ -63,6 +68,7 @@ pub fn create_chat(
         .transparent(true)
         .initialization_script(include_str!("../scripts/theme-override.js"))
         .initialization_script(NAV_HANDLER_SCRIPT)
+        .initialization_script(sidebar_state_script)
         // Inject the styling at document-start so the page is never painted
         // unstyled. The script itself is a no-op outside Messenger.
         .initialization_script(INJECT_SCRIPT.as_str())
@@ -226,7 +232,7 @@ pub fn create_chat(
                 }
             }
         })
-        .on_page_load(|window, payload| {
+        .on_page_load(move |window, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 // Apply the current theme on every page load
                 if let Ok(theme) = CURRENT_THEME.lock() {
@@ -252,9 +258,20 @@ pub fn create_chat(
                 // Fallback for the document-start injection hooks. Both scripts
                 // are idempotent, so running them again is safe.
                 if is_messages_page(payload.url()) {
+                    IS_LOGGING_OUT.store(false, Ordering::Relaxed);
                     eprintln!("[mesa] CHAT CSS FALLBACK: {url_str}");
                     let _ = window.eval(INJECT_SCRIPT.as_str());
                     let _ = window.eval(SIDEBAR_RESIZE_SCRIPT);
+                }
+
+                // The durable copy lives outside the webview profile, so it
+                // survives logout clearing site data. Apply the latest values
+                // after the sidebar script is available.
+                let sidebar = sidebar_app_handle.state::<SettingsStore>().sidebar();
+                if let Ok(json) = serde_json::to_string(&sidebar) {
+                    let _ = window.eval(format!(
+                        "window.__mesaApplySidebarState && window.__mesaApplySidebarState({json});"
+                    ));
                 }
 
                 // Track whether we're on a login page

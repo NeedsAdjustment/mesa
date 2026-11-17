@@ -43,19 +43,29 @@ pub fn get_chat_zoom() -> f64 {
 
 #[tauri::command]
 pub fn simulate_shortcut(window: tauri::Window, action: String) {
-    if let Some(chat) = window.get_webview("chat_window") {
-        let js = match action.as_str() {
-            "undo" => r"document.execCommand('undo')",
-            "redo" => r"document.execCommand('redo')",
-            "cut" => r"document.execCommand('cut')",
-            "copy" => r"document.execCommand('copy')",
-            "paste" => r"document.execCommand('paste')",
-            "delete" => r"document.execCommand('delete')",
-            "selectAll" => r"document.execCommand('selectAll')",
-            _ => return,
-        };
-        let _ = chat.eval(js);
-    }
+    let Some(chat) = window.get_webview("chat_window") else {
+        return;
+    };
+
+    // The command acts on the focused element, so make sure the chat owns
+    // focus before running it.
+    let _ = chat.set_focus();
+
+    let command = match action.as_str() {
+        "undo" | "redo" | "cut" | "copy" | "paste" | "delete" | "selectAll" => action.as_str(),
+        _ => return,
+    };
+
+    let js = format!(
+        "(() => {{ try {{ return document.execCommand('{command}') }} catch (error) {{ console.warn('[mesa] edit command failed', error); return false }} }})()"
+    );
+
+    let action_for_log = action;
+    let _ = chat.eval_with_callback(js, move |result| {
+        if result.trim() != "true" {
+            eprintln!("[mesa] edit command {action_for_log} failed: {result}");
+        }
+    });
 }
 
 #[tauri::command]
@@ -74,6 +84,8 @@ pub fn show_devtools(window: tauri::Window) {
 
 #[tauri::command]
 pub fn logout(window: tauri::Window) {
+    crate::IS_LOGGING_OUT.store(true, Ordering::Relaxed);
+
     if let Some(chat) = window.get_webview("chat_window") {
         // Kill the SPA by clearing the document in-place. This removes
         // all JavaScript state and event listeners (including any
