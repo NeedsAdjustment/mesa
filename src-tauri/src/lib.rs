@@ -21,8 +21,6 @@ pub const TITLEBAR_HEIGHT: f64 = 32.;
 pub const INITIAL_WIDTH: f64 = 800.;
 pub const INITIAL_HEIGHT: f64 = 600.;
 
-pub const INJECT_URLS: &[&str] = &["facebook.com/messages"];
-
 pub const ZOOM_MIN: f64 = 0.5;
 pub const ZOOM_MAX: f64 = 2.0;
 pub const ZOOM_STEP: f64 = 0.1;
@@ -33,6 +31,7 @@ pub static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
 pub static CALL_WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
 pub static BACKDROP_BLUR_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static WINDOW_NARROW: AtomicBool = AtomicBool::new(false);
 pub static CURRENT_THEME: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("dark".into()));
 
 pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
@@ -73,7 +72,7 @@ pub fn run() {
                         return;
                     }
 
-                    let Some(next) = zoom::compute_next_zoom(&shortcut) else {
+                    let Some(next) = zoom::compute_next_zoom(shortcut) else {
                         return;
                     };
 
@@ -90,9 +89,10 @@ pub fn run() {
             commands::show_devtools,
             commands::logout,
             commands::check_logged_in,
+            commands::show_downloads,
+            commands::open_download,
             commands::set_theme,
             commands::set_backdrop_blur,
-            commands::toggle_sidebar,
             commands::set_window_narrow,
         ])
         .setup(|app| {
@@ -109,4 +109,16 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inject_script_placeholders_are_replaced() {
+        assert!(INJECT_SCRIPT.contains(MESSENGER_STYLE_ID));
+        assert!(!INJECT_SCRIPT.contains("__STYLE_ID__"));
+        assert!(!INJECT_SCRIPT.contains("__CSS__"));
+    }
 }

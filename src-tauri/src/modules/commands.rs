@@ -3,12 +3,13 @@ use tauri::Manager;
 use tauri::Url;
 #[cfg(target_os = "macos")]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
+use tauri_plugin_opener::open_path;
 #[cfg(target_os = "windows")]
 use window_vibrancy::apply_acrylic;
 
 use crate::{
     BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, INITIAL_WIDTH, MESSENGER_URL,
-    apply_theme_to_chat,
+    WINDOW_NARROW, apply_theme_to_chat,
 };
 
 #[tauri::command]
@@ -67,7 +68,7 @@ pub fn focus_chat(window: tauri::Window) {
 #[tauri::command]
 pub fn show_devtools(window: tauri::Window) {
     if let Some(chat) = window.get_webview("chat_window") {
-        let _ = chat.open_devtools();
+        chat.open_devtools();
     }
 }
 
@@ -98,13 +99,27 @@ pub fn logout(window: tauri::Window) {
 
 #[tauri::command]
 pub fn check_logged_in(window: tauri::Window) -> bool {
-    if let Some(chat) = window.get_webview("chat_window") {
-        if let Ok(url) = chat.url() {
-            let s = url.as_str();
-            return !(s == "about:blank" || s.contains("/login"));
-        }
+    if let Some(chat) = window.get_webview("chat_window")
+        && let Ok(url) = chat.url()
+    {
+        let s = url.as_str();
+        return !(s == "about:blank" || s.contains("/login"));
     }
     false
+}
+
+#[tauri::command]
+pub fn show_downloads(window: tauri::Window) -> Result<(), String> {
+    let directory = window.path().download_dir().map_err(|e| e.to_string())?;
+    open_path(directory.to_string_lossy().into_owned(), None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn open_download(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).exists() {
+        return Err("file no longer exists".into());
+    }
+    open_path(path, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -116,19 +131,9 @@ pub fn set_theme(window: tauri::Window, theme: String) {
 }
 
 #[tauri::command]
-pub fn toggle_sidebar(window: tauri::Window, collapsed: bool) {
-    if let Some(chat) = window.get_webview("chat_window") {
-        let js = if collapsed {
-            "document.documentElement.classList.add('sidebar-collapsed')"
-        } else {
-            "document.documentElement.classList.remove('sidebar-collapsed')"
-        };
-        let _ = chat.eval(js);
-    }
-}
-
-#[tauri::command]
 pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
+    WINDOW_NARROW.store(narrow, Ordering::Relaxed);
+
     if let Some(chat) = window.get_webview("chat_window") {
         let js = if narrow {
             "document.documentElement.classList.add('narrow-window')"

@@ -1,8 +1,58 @@
 ;(() => {
+  // Only run on the Messenger conversation UI. If the root element does not
+  // exist yet, the on_page_load fallback will install this later.
+  const host = location.hostname
+  const isFacebookHost = host === 'facebook.com' || host.endsWith('.facebook.com')
+  if (!isFacebookHost || !location.pathname.startsWith('/messages')) return
+  if (!document.documentElement) return
+  if (window.__mesaSidebarInstalled) return
+  window.__mesaSidebarInstalled = true
+
   var SIDEBAR_SELECTOR = "div[aria-label='Thread list'][role='navigation']"
-  var STORAGE_KEY = 'mesa:sidebar-width'
+  var WIDTH_KEY = 'mesa:sidebar-width'
+  var COLLAPSED_KEY = 'mesa:sidebar-collapsed'
   var HANDLE_WIDTH = 6
   var MIN_WIDTH = 180
+  var DEFAULT_EXPANDED_WIDTH = 280
+  var SNAP_DURATION = 140
+
+  var sidebar = null
+  var handle = null
+  var startX = 0
+  var startWidth = 0
+  var isDragging = false
+  var lastTargetWidth = 0
+  var lastCollapsed = false
+  var snapToken = 0
+  var resizeObserver = new ResizeObserver(function () {
+    syncHandlePosition()
+  })
+
+  // The chat document owns the collapsed state. This survives full page loads
+  // without waiting for the titlebar/Rust to send it back.
+  if (localStorage.getItem(COLLAPSED_KEY) === 'true') {
+    document.documentElement.classList.add('sidebar-collapsed')
+  }
+  lastCollapsed = isCollapsed()
+
+  function isCollapsed() {
+    return document.documentElement.classList.contains('sidebar-collapsed')
+  }
+
+  function persistCollapsed(collapsed) {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, String(collapsed))
+    } catch (_) {}
+  }
+
+  function getSavedWidth() {
+    var w = localStorage.getItem(WIDTH_KEY)
+    return w ? parseFloat(w) : null
+  }
+
+  function saveWidth(w) {
+    localStorage.setItem(WIDTH_KEY, String(Math.round(w)))
+  }
 
   function getMaxWidth() {
     if (document.documentElement.classList.contains('narrow-window')) {
@@ -11,32 +61,83 @@
     return Math.round(window.innerWidth / 2)
   }
 
-  var sidebar = null
-  var handle = null
-  var startX = 0
-  var startWidth = 0
-  var isDragging = false
-  var resizeObserver = new ResizeObserver(function () {
-    syncHandlePosition()
-  })
-
-  function getSavedWidth() {
-    var w = localStorage.getItem(STORAGE_KEY)
-    return w ? parseFloat(w) : null
+  function getCollapsedWidth() {
+    var rootSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize)
+    return Math.round((isNaN(rootSize) ? 16 : rootSize) * 6)
   }
 
-  function saveWidth(w) {
-    localStorage.setItem(STORAGE_KEY, String(Math.round(w)))
+  function getExpandedWidth() {
+    var max = getMaxWidth()
+    var saved = getSavedWidth()
+    var min = Math.min(MIN_WIDTH, max)
+    if (saved) return Math.max(Math.min(saved, max), min)
+    return Math.min(DEFAULT_EXPANDED_WIDTH, max)
   }
 
   function setSidebarWidth(w) {
+    if (!sidebar) return
+    lastTargetWidth = w
     sidebar.style.setProperty('width', w + 'px', 'important')
     sidebar.style.setProperty('flex', 'none', 'important')
   }
 
   function clearSidebarWidth() {
+    lastTargetWidth = 0
+    if (!sidebar) return
     sidebar.style.removeProperty('width')
     sidebar.style.removeProperty('flex')
+  }
+
+  function animateSidebarWidth(target, done) {
+    var token = ++snapToken
+
+    if (!sidebar) {
+      lastTargetWidth = target
+      if (done) done()
+      return
+    }
+
+    lastTargetWidth = target
+    if (!sidebar.style.getPropertyValue('width')) {
+      // Give the width an explicit start value so transitions from `auto` animate.
+      sidebar.style.setProperty(
+        'width',
+        sidebar.getBoundingClientRect().width + 'px',
+        'important',
+      )
+      sidebar.style.setProperty('flex', 'none', 'important')
+    }
+
+    sidebar.style.setProperty(
+      'transition',
+      'width ' + SNAP_DURATION + 'ms cubic-bezier(0.2, 0, 0, 1)',
+      'important',
+    )
+    sidebar.style.setProperty('flex', 'none', 'important')
+
+    requestAnimationFrame(function () {
+      if (token !== snapToken) return
+      setSidebarWidth(target)
+      syncHandlePosition()
+      window.setTimeout(function () {
+        if (token !== snapToken) return
+        if (sidebar) sidebar.style.removeProperty('transition')
+        if (done) done()
+      }, SNAP_DURATION + 20)
+    })
+  }
+
+  function collapseSidebarAnimated() {
+    animateSidebarWidth(getCollapsedWidth())
+  }
+
+  function expandSidebarAnimated() {
+    var target = getExpandedWidth()
+    animateSidebarWidth(target, function () {
+      // If the user started resizing again while the snap animation ran, the
+      // drag's own mouseup already saved the newer width.
+      if (!isCollapsed() && Math.abs(lastTargetWidth - target) < 1) saveWidth(target)
+    })
   }
 
   function syncHandlePosition() {
@@ -59,6 +160,11 @@
     if (handle) return
     sidebar = document.querySelector(SIDEBAR_SELECTOR)
     if (!sidebar) return
+
+    // Re-apply the saved width whenever the handle is re-created. Removing the
+    // handle clears the inline width, so without this the user's resize is lost
+    // after opening an overlay or collapsing/expanding the sidebar.
+    applySavedWidth()
 
     handle = document.createElement('div')
     handle.id = 'mesa-sidebar-resize-handle'
@@ -103,6 +209,7 @@
   }
 
   function onMouseDown(e) {
+    if (!sidebar) return
     e.preventDefault()
     isDragging = true
     startX = e.clientX
@@ -114,22 +221,56 @@
   }
 
   function onMouseMove(e) {
-    if (!isDragging) return
-    var newWidth = Math.min(getMaxWidth(), Math.max(MIN_WIDTH, startWidth + (e.clientX - startX)))
-    setSidebarWidth(newWidth)
+    if (!isDragging || !sidebar) return
+
+    // Track the pointer 1:1 for the whole gesture, including through the
+    // icon-rail region. The collapsed class only controls whether labels are
+    // visible; the inline width keeps following the cursor.
+    var width = Math.min(
+      getMaxWidth(),
+      Math.max(getCollapsedWidth(), startWidth + (e.clientX - startX)),
+    )
+    setSidebarWidth(width)
+
+    var shouldCollapse = width < MIN_WIDTH
+    if (shouldCollapse !== isCollapsed()) {
+      document.documentElement.classList.toggle('sidebar-collapsed', shouldCollapse)
+    }
+
     syncHandlePosition()
   }
 
   function onMouseUp() {
     if (!isDragging) return
-    saveWidth(sidebar.offsetWidth)
+
+    var width = lastTargetWidth > 0 ? lastTargetWidth : sidebar.offsetWidth
     cleanupDrag()
+
+    if (width < MIN_WIDTH) {
+      // Released inside the icon-rail region: settle all the way to the rail.
+      if (isCollapsed()) {
+        collapseSidebarAnimated()
+      } else {
+        document.documentElement.classList.add('sidebar-collapsed')
+      }
+    } else {
+      saveWidth(width)
+      if (isCollapsed()) {
+        document.documentElement.classList.remove('sidebar-collapsed')
+      }
+    }
   }
 
   function applySavedWidth() {
+    if (isCollapsed()) {
+      setSidebarWidth(getCollapsedWidth())
+      return
+    }
+
     var saved = getSavedWidth()
     if (saved) {
-      setSidebarWidth(Math.min(saved, getMaxWidth()))
+      var max = getMaxWidth()
+      setSidebarWidth(Math.max(Math.min(saved, max), Math.min(MIN_WIDTH, max)))
     } else {
       clearSidebarWidth()
     }
@@ -137,7 +278,6 @@
 
   function updateHandle() {
     if (
-      document.documentElement.classList.contains('sidebar-collapsed') ||
       document.documentElement.classList.contains('narrow-window') ||
       isOverlayOpen()
     ) {
@@ -191,7 +331,25 @@
   }
 
   var classObserver = new MutationObserver(function () {
-    // Only act if the class change actually affects handle visibility
+    // In Messenger's narrow/mobile layout the icon rail is not usable.
+    if (
+      document.documentElement.classList.contains('narrow-window') &&
+      isCollapsed()
+    ) {
+      document.documentElement.classList.remove('sidebar-collapsed')
+    }
+
+    var collapsed = isCollapsed()
+    if (collapsed !== lastCollapsed) {
+      lastCollapsed = collapsed
+      persistCollapsed(collapsed)
+      // While dragging, the width is controlled by the pointer. Don't animate
+      // to the rail/saved width here; the mouseup settle handles that.
+      if (!isDragging) {
+        if (collapsed) collapseSidebarAnimated()
+        else expandSidebarAnimated()
+      }
+    }
     updateHandle()
   })
   classObserver.observe(document.documentElement, {

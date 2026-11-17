@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
+import { listen } from '@tauri-apps/api/event'
 
 const TITLEBAR_HEIGHT = 32
 
@@ -295,43 +296,204 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
-// ---- Sidebar Toggle ----
+// ---- Narrow window ----
 
-const SIDEBAR_KEY = 'mesa:sidebar-collapsed'
+// Messenger switches to its full-width mobile layout around 663px. The chat
+// script expands the sidebar and removes the resize handle when this is set.
+function updateNarrowWindow() {
+  invoke('set_window_narrow', { narrow: window.innerWidth <= 663 }).catch((error) =>
+    console.error('failed to update narrow window state', error),
+  )
+}
+window.addEventListener('resize', updateNarrowWindow)
+updateNarrowWindow()
 
-function getSidebarCollapsed(): boolean {
-  return localStorage.getItem(SIDEBAR_KEY) === 'true'
+// ---- Title text visibility ----
+
+const titleTextEl = document.querySelector<HTMLElement>('.title-text')
+const appTitleTextEl = document.getElementById('app-title-text')
+const menuBarEl = document.querySelector<HTMLElement>('.menu-bar')
+const controlsEl = document.querySelector<HTMLElement>('.controls')
+
+function updateTitleVisibility() {
+  if (!titleTextEl || !appTitleTextEl) return
+
+  const text = appTitleTextEl.getBoundingClientRect()
+  const menu = menuBarEl?.getBoundingClientRect()
+  const downloadsMenu = document.querySelector<HTMLElement>('.downloads-menu:not(.hidden)')
+  const right = (downloadsMenu ?? controlsEl)?.getBoundingClientRect()
+  const overlaps =
+    (menu && text.left < menu.right + 6) ||
+    (right && text.right > right.left - 6)
+
+  titleTextEl.classList.toggle('hidden', window.innerWidth <= 399 || overlaps)
+}
+window.addEventListener('resize', updateTitleVisibility)
+controlsEl?.addEventListener('transitionend', updateTitleVisibility)
+updateTitleVisibility()
+
+// ---- Downloads menu ----
+
+interface DownloadStartedPayload {
+  url: string
+  filename: string
+  path: string
 }
 
-function setSidebarCollapsed(collapsed: boolean) {
-  localStorage.setItem(SIDEBAR_KEY, String(collapsed))
-  document.getElementById('sidebar-toggle')?.classList.toggle('active', collapsed)
-  invoke('toggle_sidebar', { collapsed })
+interface DownloadFinishedPayload {
+  url: string
+  filename: string
+  path: string | null
+  success: boolean
 }
 
-// Disable sidebar toggle when the window is too narrow for a collapsed sidebar
-// (Messenger switches to full-width mobile layout around 663px)
-function updateSidebarDisabled() {
-  const narrow = window.innerWidth <= 663
-  const toggle = document.getElementById('sidebar-toggle')
-  if (!toggle) return
-  toggle.classList.toggle('disabled', narrow)
-  if (narrow && getSidebarCollapsed()) {
-    setSidebarCollapsed(false)
+type DownloadStatus = 'downloading' | 'saved' | 'failed'
+
+interface SessionDownload {
+  url: string
+  filename: string
+  path: string | null
+  status: DownloadStatus
+}
+
+const downloadsMenuEl = document.querySelector<HTMLElement>('.downloads-menu')
+const downloadsListEl = document.getElementById('downloads-list')
+const downloadsDropdownEl =
+  downloadsMenuEl?.querySelector<HTMLElement>('.downloads-dropdown') ?? null
+const showDownloadsFolderEl = document.getElementById('show-downloads-folder')
+
+const sessionDownloads: SessionDownload[] = []
+
+function middleTruncate(value: string, maxLength = 34): string {
+  if (value.length <= maxLength) return value
+
+  const dot = value.lastIndexOf('.')
+  const extension = dot > 0 ? value.slice(dot) : ''
+  const stem = dot > 0 ? value.slice(0, dot) : value
+  const available = Math.max(4, maxLength - extension.length - 1)
+  const front = Math.ceil(available * 0.6)
+  const back = Math.floor(available * 0.4)
+  const tail = back > 0 ? stem.slice(-back) : ''
+
+  return `${stem.slice(0, front)}…${tail}${extension}`
+}
+
+function resizeDownloadsDropdown() {
+  if (!downloadsMenuEl?.classList.contains('open') || !downloadsDropdownEl) return
+  invoke('resize_titlebar', {
+    height: TITLEBAR_HEIGHT + downloadsDropdownEl.offsetHeight,
+  })
+}
+
+function renderDownloads() {
+  if (!downloadsListEl) return
+
+  // The titlebar entry only exists once something has been downloaded this
+  // session; a fresh launch starts with no Downloads button.
+  downloadsMenuEl?.classList.toggle('hidden', sessionDownloads.length === 0)
+
+  downloadsListEl.replaceChildren()
+
+  if (sessionDownloads.length === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'menu-entry text download-empty'
+    empty.textContent = 'No downloads this session'
+    downloadsListEl.appendChild(empty)
+    resizeDownloadsDropdown()
+    updateTitleVisibility()
+    return
   }
-  invoke('set_window_narrow', { narrow })
+
+  for (const download of sessionDownloads) {
+    const entry = document.createElement('button')
+    entry.type = 'button'
+    entry.className = 'menu-entry download-entry'
+    entry.disabled = download.status !== 'saved' || !download.path
+
+    const name = document.createElement('span')
+    name.className = 'download-entry-name'
+    name.textContent = middleTruncate(download.filename || 'download')
+    name.title = download.filename || 'download'
+    entry.appendChild(name)
+
+    const state = document.createElement('span')
+    state.className = 'download-entry-state'
+    const icon = document.createElement('i')
+
+    if (download.status === 'downloading') {
+      icon.className = 'ph ph-spinner-gap'
+    } else if (download.status === 'failed') {
+      icon.className = 'ph ph-warning'
+      state.classList.add('failed')
+    } else {
+      icon.className = 'ph ph-check'
+    }
+
+    state.appendChild(icon)
+    entry.appendChild(state)
+
+    const path = download.path
+    if (download.status === 'saved' && path) {
+      entry.addEventListener('click', (event) => {
+        event.stopPropagation()
+        invoke('open_download', { path }).catch((error) =>
+          console.error('failed to open download', error),
+        )
+        closeAllMenus()
+      })
+    }
+
+    downloadsListEl.appendChild(entry)
+  }
+
+  resizeDownloadsDropdown()
+  updateTitleVisibility()
 }
-window.addEventListener('resize', updateSidebarDisabled)
-updateSidebarDisabled()
 
-// Initialize from saved state
-setSidebarCollapsed(getSidebarCollapsed())
+listen<DownloadStartedPayload>('download-started', (event) => {
+  sessionDownloads.unshift({
+    url: event.payload.url,
+    filename: event.payload.filename || 'download',
+    path: event.payload.path || null,
+    status: 'downloading',
+  })
+  renderDownloads()
+}).catch((error) => console.error('failed to listen for download-started', error))
 
-// Wire up the sidebar toggle button
-document.getElementById('sidebar-toggle')?.addEventListener('click', (e) => {
-  e.stopPropagation()
-  if (document.getElementById('sidebar-toggle')?.classList.contains('disabled')) return
-  const collapsed = !getSidebarCollapsed()
-  setSidebarCollapsed(collapsed)
+listen<DownloadFinishedPayload>('download-finished', (event) => {
+  const payload = event.payload
+  const existing =
+    sessionDownloads.find(
+      (download) =>
+        download.status === 'downloading' &&
+        download.url === payload.url &&
+        download.filename === payload.filename,
+    ) ??
+    sessionDownloads.find(
+      (download) => download.status === 'downloading' && download.url === payload.url,
+    )
+
+  if (existing) {
+    existing.status = payload.success ? 'saved' : 'failed'
+    existing.path = payload.path ?? existing.path
+    if (payload.filename) existing.filename = payload.filename
+  } else {
+    sessionDownloads.unshift({
+      url: payload.url,
+      filename: payload.filename || 'download',
+      path: payload.path,
+      status: payload.success ? 'saved' : 'failed',
+    })
+  }
+
+  renderDownloads()
+}).catch((error) => console.error('failed to listen for download-finished', error))
+
+showDownloadsFolderEl?.addEventListener('click', (event) => {
+  event.stopPropagation()
+  invoke('show_downloads').catch((error) => console.error('failed to open downloads folder', error))
+  closeAllMenus()
 })
+
+renderDownloads()
 

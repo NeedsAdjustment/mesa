@@ -4,7 +4,6 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css" />
   <link rel="stylesheet" href="/src/styles/styles.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mesa</title>
@@ -14,10 +13,6 @@
 <body>
   <div class="titlebar">
     <div class="menu-bar">
-      <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle sidebar">
-        <i class="ph ph-tray-arrow-down"></i>
-        <i class="ph ph-tray-arrow-up"></i>
-      </button>
       <div class="menu">
         <button class="menu-trigger">File</button>
         <div class="dropdown">
@@ -47,9 +42,9 @@
           <div class="menu-entry inline">
             <div class="inline-text">Interface Zoom</div>
             <div class="inline-controls">
-              <button class="icon-btn" title="zoom out"><i class="ph-bold ph-minus"></i></button>
+              <button class="icon-btn" title="zoom out"><i class="ph ph-minus"></i></button>
               <div class="zoom-value">100%</div>
-              <button class="icon-btn" title="zoom in"><i class="ph-bold ph-plus"></i></button>
+              <button class="icon-btn" title="zoom in"><i class="ph ph-plus"></i></button>
             </div>
           </div>
           <div class="menu-entry inline">
@@ -68,17 +63,28 @@
           </div>
           <button class="menu-entry">
             <div class="inline-text">Backdrop Blur</div>
-            <i class="ph-bold ph-check check-icon"></i>
+            <i class="ph ph-check check-icon"></i>
           </button>
           <div class="divider"></div>
           <button class="menu-entry">
             <div class="inline-text">Hide Window Controls</div>
-            <i class="ph-bold ph-check check-icon"></i>
+            <i class="ph ph-check check-icon"></i>
           </button>
         </div>
       </div>
     </div>
-    <div class="title" data-tauri-drag-region>mesa</div>
+    <div class="title" data-tauri-drag-region></div>
+    <div class="title-text"><span id="app-title-text">mesa</span></div>
+    <div class="menu downloads-menu hidden">
+      <button id="downloads-toggle" class="menu-trigger downloads-toggle" title="Downloads" aria-label="Downloads" aria-haspopup="true" type="button">
+        <i class="ph ph-download-simple"></i>
+      </button>
+      <div class="dropdown downloads-dropdown">
+        <div id="downloads-list" class="downloads-list"></div>
+        <div class="divider"></div>
+        <button id="show-downloads-folder" class="menu-entry" type="button">Show downloads folder</button>
+      </div>
+    </div>
     <div class="controls">
       <button class="control" id="titlebar-minimize" title="minimize">
         <svg viewBox="0 0 10 1" xmlns="http://www.w3.org/2000/svg">

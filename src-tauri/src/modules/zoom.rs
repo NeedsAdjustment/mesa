@@ -37,10 +37,10 @@ pub fn setup_zoom_shortcuts(app: &mut tauri::App, window: &tauri::Window) {
 }
 
 pub fn apply_zoom_via_app(app: &tauri::AppHandle, zoom: f64) {
-    if let Some(window) = app.get_window("main") {
-        if let Some(chat) = window.get_webview("chat_window") {
-            let _ = chat.set_zoom(zoom);
-        }
+    if let Some(window) = app.get_window("main")
+        && let Some(chat) = window.get_webview("chat_window")
+    {
+        let _ = chat.set_zoom(zoom);
     }
     if let Ok(mut current) = CURRENT_ZOOM.lock() {
         *current = zoom;
