@@ -43,6 +43,7 @@ html.mesa-global-theme {
   --mesa-chat-text: #f5f5f5;
   --mesa-chat-muted: #b0b3b8;
   --mesa-chat-border: rgba(255, 255, 255, 0.16);
+  --mesa-chat-action-border: rgba(255, 255, 255, 0.2);
   --mesa-chat-scrollbar-thumb: rgba(255, 255, 255, 0.34);
   --mesa-chat-scrollbar-track: transparent;
   --mesa-chat-scrollbar-arrow: rgba(255, 255, 255, 0.55);
@@ -62,6 +63,7 @@ html.theme-light.mesa-global-theme {
   --mesa-chat-text: #111111;
   --mesa-chat-muted: #65676b;
   --mesa-chat-border: rgba(0, 0, 0, 0.16);
+  --mesa-chat-action-border: rgba(0, 0, 0, 0.12);
   --mesa-chat-scrollbar-thumb: rgba(0, 0, 0, 0.32);
   --mesa-chat-scrollbar-track: transparent;
   --mesa-chat-scrollbar-arrow: rgba(0, 0, 0, 0.55);
@@ -136,6 +138,8 @@ html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] {
 
 html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] [role='button'] {
   background-color: var(--mesa-chat-reply-bg) !important;
+  border: 1px solid var(--mesa-chat-action-border) !important;
+  box-sizing: border-box !important;
 }
 
 html.mesa-global-theme [role='toolbar'][aria-label='Message actions'] [role='presentation'] {
