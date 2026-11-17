@@ -35,6 +35,11 @@ html.mesa-global-theme {
   --mesa-chat-surface: #202020;
   --mesa-chat-incoming: #303030;
   --mesa-chat-outgoing: color-mix(in srgb, var(--mesa-accent-base), black 24%);
+  --mesa-chat-reply-bg: rgba(255, 255, 255, 0.12);
+  --mesa-chat-reaction-bg: color-mix(in srgb, var(--mesa-chat-incoming), white 10%);
+  --mesa-chat-reaction-selected: var(--mesa-accent);
+  --mesa-chat-outgoing-text: #ffffff;
+  --mesa-chat-incoming-text: #ffffff;
   --mesa-chat-text: #f5f5f5;
   --mesa-chat-muted: #b0b3b8;
   --mesa-chat-border: rgba(255, 255, 255, 0.16);
@@ -49,6 +54,11 @@ html.theme-light.mesa-global-theme {
   --mesa-chat-surface: #f3f3f3;
   --mesa-chat-incoming: #e4e6eb;
   --mesa-chat-outgoing: color-mix(in srgb, var(--mesa-accent-base), black 24%);
+  --mesa-chat-reply-bg: rgba(0, 0, 0, 0.08);
+  --mesa-chat-reaction-bg: color-mix(in srgb, var(--mesa-chat-incoming), black 8%);
+  --mesa-chat-reaction-selected: var(--mesa-accent);
+  --mesa-chat-outgoing-text: #ffffff;
+  --mesa-chat-incoming-text: #111111;
   --mesa-chat-text: #111111;
   --mesa-chat-muted: #65676b;
   --mesa-chat-border: rgba(0, 0, 0, 0.16);
@@ -66,6 +76,12 @@ html.mesa-global-theme div[role='region']:has(div[role='log']) {
   --primary-text: var(--mesa-chat-text) !important;
   --secondary-text: var(--mesa-chat-muted) !important;
   --primary-icon: var(--mesa-accent) !important;
+  --mwp-primary-theme-color: var(--mesa-accent) !important;
+  --chat-replied-message-background-color: var(--mesa-chat-reply-bg) !important;
+  --reaction-pill-background-color: var(--mesa-chat-reaction-bg) !important;
+  --reaction-pill-multireact-selected-color: var(--mesa-chat-reaction-selected) !important;
+  --chat-message-text-color: var(--mesa-chat-outgoing-text) !important;
+  --chat-incoming-message-text-color: var(--mesa-chat-incoming-text) !important;
   --mwp-header-button-color: var(--mesa-accent) !important;
   --mwp-header-text-color: var(--mesa-chat-text) !important;
   --chat-scrollbar-thumb-color: var(--mesa-chat-scrollbar-thumb) !important;
@@ -94,12 +110,28 @@ html.mesa-global-theme div[role='region']:has(div[role='log']) :is(.__fb-light-m
   background-image: none !important;
   --mwp-message-row-background: var(--mesa-chat-bg) !important;
   --primary-icon: var(--mesa-accent) !important;
+  --mwp-primary-theme-color: var(--mesa-accent) !important;
+  --chat-replied-message-background-color: var(--mesa-chat-reply-bg) !important;
+  --reaction-pill-background-color: var(--mesa-chat-reaction-bg) !important;
+  --reaction-pill-multireact-selected-color: var(--mesa-chat-reaction-selected) !important;
+  --chat-message-text-color: var(--mesa-chat-outgoing-text) !important;
+  --chat-incoming-message-text-color: var(--mesa-chat-incoming-text) !important;
   --chat-incoming-message-bubble-background-color: var(--mesa-chat-incoming) !important;
   --chat-outgoing-message-bubble-background-color: var(--mesa-chat-outgoing) !important;
   --chat-outgoing-message-background-gradient: linear-gradient(
     var(--mesa-chat-outgoing),
     var(--mesa-chat-outgoing)
   ) !important;
+}
+
+/* the large Messenger Like sticker follows the accent */
+html.mesa-global-theme div[role='region']:has(div[role='log']) [role='img'][aria-label='Like, thumbs up'] path {
+  fill: var(--mesa-accent) !important;
+}
+
+/* draft labels in the sidebar use the accent when the window is translucent */
+html.mesa-global-theme.backdrop-blur div[aria-label='Chats'][role='grid'] span.mesa-draft-label {
+  color: var(--mesa-accent) !important;
 }
 
 /* scrollbar colours: native bar and buttons */

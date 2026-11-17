@@ -53,9 +53,31 @@
     }
   }
 
+  const markDraftLabels = () => {
+    const sidebar = document.querySelector("div[aria-label='Thread list'][role='navigation']")
+    if (!sidebar) return
+
+    for (const label of sidebar.querySelectorAll('span.mesa-draft-label')) {
+      if (!/^Draft:?$/i.test(label.textContent.trim())) {
+        label.classList.remove('mesa-draft-label')
+      }
+    }
+
+    for (const span of sidebar.querySelectorAll('span')) {
+      if (
+        span.childElementCount === 0 &&
+        /^Draft:?$/i.test(span.textContent.trim()) &&
+        !span.classList.contains('mesa-draft-label')
+      ) {
+        span.classList.add('mesa-draft-label')
+      }
+    }
+  }
+
   const runMaintenance = () => {
     ensureStyle()
     ensureEmptyChat()
+    markDraftLabels()
   }
 
   const startMaintenance = () => {
