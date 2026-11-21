@@ -6,7 +6,7 @@ edition = "2024"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["unstable", "devtools"] }
+tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-window-state = "2"
@@ -18,4 +18,5 @@ window-vibrancy = "0.7.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 jpeg-decoder = "0.3"
+windows = { version = "0.61", features = ["Win32_Graphics_Gdi"] }
 

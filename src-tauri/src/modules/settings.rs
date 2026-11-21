@@ -22,6 +22,8 @@ struct SettingsFile {
     global_theme: bool,
     #[serde(default = "default_true")]
     auto_updates: bool,
+    #[serde(default)]
+    tray_mode: bool,
 }
 
 fn default_true() -> bool {
@@ -117,6 +119,27 @@ impl SettingsStore {
         true
     }
 
+    pub fn tray_mode(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|settings| settings.tray_mode)
+            .unwrap_or(false)
+    }
+
+    pub fn update_tray_mode(&self, enabled: bool) -> bool {
+        let Ok(mut settings) = self.inner.lock() else {
+            return false;
+        };
+
+        if settings.tray_mode == enabled {
+            return false;
+        }
+
+        settings.tray_mode = enabled;
+        self.save(&settings);
+        true
+    }
+
     fn save(&self, settings: &SettingsFile) {
         let Some(path) = &self.path else {
             return;
@@ -153,6 +176,7 @@ mod tests {
             },
             global_theme: true,
             auto_updates: false,
+            tray_mode: true,
         };
 
         let json = serde_json::to_string(&settings).expect("serialize settings");
@@ -162,6 +186,7 @@ mod tests {
         assert!(parsed.sidebar.collapsed);
         assert!(parsed.global_theme);
         assert!(!parsed.auto_updates);
+        assert!(parsed.tray_mode);
     }
 
     #[test]

@@ -230,6 +230,19 @@ pub fn set_auto_updates(app: tauri::AppHandle, enabled: bool) {
 }
 
 #[tauri::command]
+pub fn get_tray_mode() -> bool {
+    crate::tray::TRAY_MODE_ENABLED.load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+pub fn set_tray_mode(app: tauri::AppHandle, enabled: bool) {
+    crate::tray::TRAY_MODE_ENABLED.store(enabled, Ordering::Relaxed);
+    app.state::<crate::settings::SettingsStore>()
+        .update_tray_mode(enabled);
+    crate::tray::apply_tray_mode(&app, enabled);
+}
+
+#[tauri::command]
 pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
     WINDOW_NARROW.store(narrow, Ordering::Relaxed);
 

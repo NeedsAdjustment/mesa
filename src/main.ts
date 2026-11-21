@@ -17,7 +17,14 @@ getVersion().then((v) => {
 
 const appWindow = getCurrentWindow()
 
-document.getElementById('titlebar-minimize')?.addEventListener('click', () => appWindow.minimize())
+// Set by the tray mode section below; read here so the minimize button can
+// hide to the tray instead of minimising with no taskbar entry to restore from.
+let trayModeEnabled = false
+
+document.getElementById('titlebar-minimize')?.addEventListener('click', () => {
+  if (trayModeEnabled) appWindow.hide()
+  else appWindow.minimize()
+})
 document.getElementById('titlebar-maximize')?.addEventListener('click', () => appWindow.toggleMaximize())
 document.getElementById('titlebar-close')?.addEventListener('click', () => appWindow.close())
 
@@ -306,6 +313,61 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
+// ---- Tray mode ----
+
+const trayModeBtn = document.getElementById('tray-mode-toggle')
+
+function applyTrayModeUi(enabled: boolean) {
+  trayModeEnabled = enabled
+  document.documentElement.classList.toggle('tray-mode', enabled)
+  trayModeBtn?.classList.toggle('checked', enabled)
+}
+
+function setTrayMode(enabled: boolean) {
+  applyTrayModeUi(enabled)
+  invoke('set_tray_mode', { enabled }).catch((error) =>
+    console.error('failed to set tray mode', error),
+  )
+}
+
+trayModeBtn?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  setTrayMode(!trayModeBtn.classList.contains('checked'))
+  closeMenusAndFocusChat()
+})
+
+// The durable value lives in Rust, so hydrate the menu from there.
+invoke<boolean>('get_tray_mode').then(applyTrayModeUi)
+
+// ---- Docked text size ----
+
+const DOCK_SHRINK_KEY = 'mesa:dock-shrink'
+
+function getDockShrink(): boolean {
+  return localStorage.getItem(DOCK_SHRINK_KEY) === 'true'
+}
+
+const dockShrinkBtn = document.getElementById('dock-shrink-toggle') as HTMLButtonElement | null
+
+function applyDockShrinkUi(enabled: boolean) {
+  dockShrinkBtn?.classList.toggle('checked', enabled)
+}
+
+function setDockShrink(enabled: boolean) {
+  localStorage.setItem(DOCK_SHRINK_KEY, String(enabled))
+  applyDockShrinkUi(enabled)
+  // Apply the step immediately when the panel is currently docked.
+  if (windowNarrow) stepChatZoom(enabled ? -1 : 1)
+}
+
+dockShrinkBtn?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  setDockShrink(!dockShrinkBtn.classList.contains('checked'))
+  closeMenusAndFocusChat()
+})
+
+applyDockShrinkUi(getDockShrink())
+
 // ---- File menu actions ----
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
@@ -552,12 +614,31 @@ invoke<boolean>('get_auto_updates').then((enabled) => {
 
 // ---- Narrow window ----
 
+let windowNarrow: boolean | null = null
+
+function stepChatZoom(direction: number) {
+  invoke<number>('get_chat_zoom')
+    .then((zoom) => {
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + direction * ZOOM_STEP))
+      return invoke('set_chat_zoom', { zoom: next })
+    })
+    .catch((error) => console.error('failed to adjust docked zoom', error))
+}
+
 // Messenger switches to its full-width mobile layout around 663px. The chat
 // script expands the sidebar and removes the resize handle when this is set.
+// With shrink on, docking steps the chat zoom one tick down and undocking
+// steps it back up.
 function updateNarrowWindow() {
-  invoke('set_window_narrow', { narrow: window.innerWidth <= 663 }).catch((error) =>
+  const narrow = window.innerWidth <= 663
+  invoke('set_window_narrow', { narrow }).catch((error) =>
     console.error('failed to update narrow window state', error),
   )
+
+  if (windowNarrow !== null && narrow !== windowNarrow && getDockShrink()) {
+    stepChatZoom(narrow ? -1 : 1)
+  }
+  windowNarrow = narrow
 }
 window.addEventListener('resize', updateNarrowWindow)
 updateNarrowWindow()

@@ -9,6 +9,7 @@ pub use modules::accent;
 pub use modules::commands;
 pub use modules::navigation;
 pub use modules::settings;
+pub use modules::tray;
 pub use modules::window;
 pub use modules::zoom;
 
@@ -22,6 +23,15 @@ pub const INJECT_JS: &str = include_str!("scripts/tweaks-inject.js");
 pub const TITLEBAR_HEIGHT: f64 = 32.;
 pub const INITIAL_WIDTH: f64 = 800.;
 pub const INITIAL_HEIGHT: f64 = 600.;
+
+/// Docked chat panel size in tray mode, in logical pixels. The width matches
+/// the window minimum so Messenger uses its narrow layout.
+pub const DOCK_WIDTH: f64 = 316.;
+pub const DOCK_HEIGHT: f64 = 520.;
+
+/// Upper bound for the docked panel height. Only exists because the width
+/// has to be pinned through a max constraint; effectively unlimited.
+pub const MAX_DOCK_HEIGHT: f64 = 1_000_000.0;
 
 pub const ZOOM_MIN: f64 = 0.5;
 pub const ZOOM_MAX: f64 = 2.0;
@@ -80,7 +90,18 @@ pub fn apply_theme_to_chat(window: &tauri::Window, theme: &str) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                // The app owns visibility: launching into tray mode must stay
+                // hidden until the first tray click, so the plugin only
+                // manages geometry.
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(
@@ -116,12 +137,16 @@ pub fn run() {
             commands::set_window_narrow,
             commands::get_auto_updates,
             commands::set_auto_updates,
+            commands::get_tray_mode,
+            commands::set_tray_mode,
         ])
         .setup(|app| {
             let settings = settings::SettingsStore::load(app.handle());
             let sidebar = settings.sidebar();
             let global_theme = settings.global_theme();
+            let tray_mode = settings.tray_mode();
             GLOBAL_THEME_ENABLED.store(global_theme, Ordering::Relaxed);
+            tray::TRAY_MODE_ENABLED.store(tray_mode, Ordering::Relaxed);
             app.manage(settings);
 
             // Sampling the desktop wallpaper decodes a full-size JPEG, which
@@ -131,14 +156,29 @@ pub fn run() {
                 spawn_accent_warmup(app.handle().clone());
             }
 
-            let window = window::create_window(app)?;
+            // The tray icon exists for the whole session; it is only visible
+            // while tray mode is on.
+            tray::create_tray(app.handle(), tray_mode)?;
+
+            // In tray mode the app starts as just a tray icon; the panel is
+            // shown (and docked) on the first tray click.
+            let window = window::create_window(app, tray_mode)?;
 
             let chat = window::create_chat(&window, &sidebar, global_theme)?;
             let titlebar = window::create_titlebar(&window)?;
 
             window::apply_layout(&window, &titlebar, &chat);
             window::setup_resize_handler(&window, &titlebar, &chat);
+            tray::setup_close_handler(&window);
+            tray::setup_dock_resize_handler(app.handle(), &window);
             zoom::setup_zoom_shortcuts(app, &window);
+
+            // WebView2 controller creation re-shows the host window even
+            // when it was built hidden, so enforce the tray-mode launch
+            // state once the webviews exist.
+            if tray_mode {
+                let _ = window.hide();
+            }
 
             spawn_sidebar_settings_poll(app.handle().clone());
 

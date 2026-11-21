@@ -45,7 +45,7 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 - [ ] MacOS & Linux builds
 - [ ] Icon Composer icon _(MacOS)_
 - [ ] Custom themes
-- [ ] Dock/Tray mode _(Windows, MacOS)_
+- [x] Dock/Tray mode _(Windows)_
 - [ ] ???
 
 ## Contributing
