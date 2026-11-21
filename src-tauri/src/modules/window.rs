@@ -9,7 +9,7 @@ use tauri_plugin_opener::open_url;
 use crate::{
     BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, DOCK_HEIGHT, DOCK_WIDTH,
     GLOBAL_THEME_ENABLED, INITIAL_HEIGHT, INITIAL_WIDTH, INJECT_SCRIPT, IS_LOGGED_OUT,
-    IS_LOGGING_OUT, MAX_DOCK_HEIGHT, MESSENGER_URL, NAV_HANDLER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
+    MAX_DOCK_HEIGHT, MESSENGER_URL, NAV_HANDLER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
     TITLEBAR_HEIGHT, WINDOW_NARROW,
     navigation::{
         NavigationAction, is_blank_url, is_call_url, is_internal_url, is_messages_page,
@@ -285,7 +285,6 @@ pub fn create_chat(
                 // Fallback for the document-start injection hooks. Both scripts
                 // are idempotent, so running them again is safe.
                 if is_messages_page(payload.url()) {
-                    IS_LOGGING_OUT.store(false, Ordering::Relaxed);
                     eprintln!("[mesa] CHAT CSS FALLBACK: {url_str}");
                     let _ = window.eval(INJECT_SCRIPT.as_str());
                     let _ = window.eval(SIDEBAR_RESIZE_SCRIPT);

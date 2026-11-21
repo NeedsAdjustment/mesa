@@ -84,28 +84,41 @@ pub fn show_devtools(window: tauri::Window) {
 
 #[tauri::command]
 pub fn logout(window: tauri::Window) {
-    crate::IS_LOGGING_OUT.store(true, Ordering::Relaxed);
-
     if let Some(chat) = window.get_webview("chat_window") {
-        // Kill the SPA by clearing the document in-place. This removes
-        // all JavaScript state and event listeners (including any
-        // beforeunload handler) without triggering a navigation.
-        let _ = chat.eval(
-            "document.open(); document.write('<!DOCTYPE html><html><body>Logging out...</body></html>'); document.close();",
-        );
+        // Persist the sidebar state before the webview data is wiped; the
+        // durable copy restores it after logging back in.
+        let app = window.app_handle().clone();
+        let _ = chat.eval_with_callback(crate::SIDEBAR_STATE_SCRIPT, move |result| {
+            if let Some((width, collapsed)) = crate::parse_sidebar_state(result.trim()) {
+                app.state::<crate::settings::SettingsStore>()
+                    .update_sidebar(width, collapsed);
+            }
 
-        // Clear all cookies and storage. The SPA is already dead so
-        // it can't detect or interfere with this.
-        let _ = chat.clear_all_browsing_data();
+            let Some(chat) = app
+                .get_window("main")
+                .and_then(|window| window.get_webview("chat_window"))
+            else {
+                return;
+            };
 
-        // Navigate to the Messenger URL using the Tauri-level API.
-        // No beforeunload to block it (SPA was killed above).
-        // Facebook sees no session cookies and redirects to /login.php,
-        // which is now in the allowlist — so the login page loads
-        // right in the webview.
-        if let Ok(url) = Url::parse(MESSENGER_URL) {
-            let _ = chat.navigate(url);
-        }
+            // Kill the SPA by clearing the document in-place. This removes
+            // all JavaScript state and event listeners (including any
+            // beforeunload handler) without triggering a navigation.
+            let _ = chat.eval(
+                "document.open(); document.write('<!DOCTYPE html><html><body>Logging out...</body></html>'); document.close();",
+            );
+
+            // Clear all cookies and storage. The SPA is already dead so
+            // it can't detect or interfere with this.
+            let _ = chat.clear_all_browsing_data();
+
+            // With the SPA dead and cookies cleared, Facebook redirects to
+            // /login.php, which is in the allowlist, so the login page
+            // loads right in the webview.
+            if let Ok(url) = Url::parse(MESSENGER_URL) {
+                let _ = chat.navigate(url);
+            }
+        });
     }
 }
 
@@ -186,8 +199,7 @@ pub fn set_global_theme(window: tauri::Window, enabled: bool) {
         .state::<crate::settings::SettingsStore>()
         .update_global_theme(enabled);
 
-    // The accent is sampled off-thread; kick that off now if this is the
-    // first time the global theme is enabled this session.
+    // Start the accent warm-up if it hasn't run yet.
     if enabled && !crate::accent::is_cached() {
         crate::spawn_accent_warmup(window.app_handle().clone());
     }

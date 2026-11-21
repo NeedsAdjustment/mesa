@@ -42,7 +42,6 @@ pub const ZOOM_STEP: f64 = 0.1;
 pub static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
 pub static CALL_WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
-pub static IS_LOGGING_OUT: AtomicBool = AtomicBool::new(false);
 pub static BACKDROP_BLUR_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static WINDOW_NARROW: AtomicBool = AtomicBool::new(false);
 pub static GLOBAL_THEME_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -59,6 +58,10 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
 
 pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
 pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
+
+/// Reads the sidebar state out of the chat document: the live collapse class
+/// plus the stored width, as `[collapsed ? 1 : 0, width | null]`.
+pub(crate) const SIDEBAR_STATE_SCRIPT: &str = "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsedKey = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsedKey === null) return null; const collapsed = document.documentElement.classList.contains('sidebar-collapsed'); return [collapsed ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()";
 
 // ---- Shared helpers ----
 
@@ -149,9 +152,8 @@ pub fn run() {
             tray::TRAY_MODE_ENABLED.store(tray_mode, Ordering::Relaxed);
             app.manage(settings);
 
-            // Sampling the desktop wallpaper decodes a full-size JPEG, which
-            // can take seconds. Never do that on the main thread: serve the
-            // fallback colour until the warm-up thread caches the real one.
+            // The wallpaper decode is seconds-slow; it must not run on the
+            // main thread.
             if global_theme {
                 spawn_accent_warmup(app.handle().clone());
             }
@@ -180,8 +182,6 @@ pub fn run() {
                 let _ = window.hide();
             }
 
-            spawn_sidebar_settings_poll(app.handle().clone());
-
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -204,8 +204,8 @@ pub fn spawn_accent_warmup(app: tauri::AppHandle) {
         accent::compute_and_cache();
         ACCENT_WARMING.store(false, Ordering::Relaxed);
 
-        // The startup injection ran with the fallback colour while the
-        // wallpaper decoded here. Re-apply now that the cache is warm.
+        // Re-apply the theme and tint with the real accent now that the
+        // cache is warm.
         let app_for_apply = app.clone();
         let _ = app.run_on_main_thread(move || {
             let Some(window) = app_for_apply.get_window("main") else {
@@ -225,47 +225,7 @@ pub fn spawn_accent_warmup(app: tauri::AppHandle) {
     });
 }
 
-fn spawn_sidebar_settings_poll(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(500));
-
-            if crate::IS_LOGGING_OUT.load(std::sync::atomic::Ordering::Relaxed) {
-                continue;
-            }
-
-            let Some(window) = app.get_window("main") else {
-                continue;
-            };
-            let Some(chat) = window.get_webview("chat_window") else {
-                continue;
-            };
-            let Ok(url) = chat.url() else {
-                continue;
-            };
-            if !navigation::is_messages_page(&url) {
-                continue;
-            }
-
-            let app_for_callback = app.clone();
-            let _ = chat.eval_with_callback(
-                "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsedKey = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsedKey === null) return null; const collapsed = document.documentElement.classList.contains('sidebar-collapsed'); return [collapsed ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()",
-                move |result| {
-                    let Some((width, collapsed)) = parse_sidebar_poll_result(result.trim())
-                    else {
-                        return;
-                    };
-
-                    app_for_callback
-                        .state::<settings::SettingsStore>()
-                        .update_sidebar(width, collapsed);
-                },
-            );
-        }
-    });
-}
-
-fn parse_sidebar_poll_result(result: &str) -> Option<(Option<u32>, bool)> {
+pub(crate) fn parse_sidebar_state(result: &str) -> Option<(Option<u32>, bool)> {
     let value: serde_json::Value = serde_json::from_str(result.trim()).ok()?;
     let value = match value {
         serde_json::Value::String(inner) => {
@@ -297,17 +257,14 @@ mod tests {
     }
 
     #[test]
-    fn parses_sidebar_poll_results() {
+    fn parses_sidebar_state() {
+        assert_eq!(parse_sidebar_state("[0,280]"), Some((Some(280), false)));
+        assert_eq!(parse_sidebar_state("[1,null]"), Some((None, true)));
         assert_eq!(
-            parse_sidebar_poll_result("[0,280]"),
-            Some((Some(280), false))
-        );
-        assert_eq!(parse_sidebar_poll_result("[1,null]"), Some((None, true)));
-        assert_eq!(
-            parse_sidebar_poll_result("\"[0, 300.4]\""),
+            parse_sidebar_state("\"[0, 300.4]\""),
             Some((Some(300), false))
         );
-        assert_eq!(parse_sidebar_poll_result("null"), None);
-        assert_eq!(parse_sidebar_poll_result(""), None);
+        assert_eq!(parse_sidebar_state("null"), None);
+        assert_eq!(parse_sidebar_state(""), None);
     }
 }
