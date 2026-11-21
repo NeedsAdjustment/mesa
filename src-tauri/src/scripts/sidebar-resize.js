@@ -202,6 +202,7 @@
   }
 
   function removeHandle() {
+    if (!handle && !isDragging) return
     cleanupDrag()
     if (sidebar) {
       resizeObserver.unobserve(sidebar)
@@ -340,15 +341,21 @@
     }
     // Check for full-viewport backdrops (photo viewer, preferences, etc.)
     if (document.querySelector('div.xixxii4.x1h0vfkc')) return true
-    // Fallback: scan for any large fixed-position overlay with a non-transparent background.
-    var divs = document.querySelectorAll('div')
-    for (var i = 0; i < divs.length; i++) {
-      var d = divs[i]
-      if (d.offsetWidth < window.innerWidth / 2) continue
-      var cs = window.getComputedStyle(d)
-      if (cs.position !== 'fixed') continue
-      var bg = cs.backgroundColor
-      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return true
+    // Fallback: if an opaque fixed-position element covers the viewport
+    // centre, treat it as an overlay. This used to scan every <div> in the
+    // document with forced layout reads, which could stall Messenger's
+    // boot sequence entirely.
+    var el = document.elementFromPoint(
+      Math.round(window.innerWidth / 2),
+      Math.round(window.innerHeight / 2),
+    )
+    while (el && el !== document.body && el !== document.documentElement) {
+      var cs = window.getComputedStyle(el)
+      if (cs.position === 'fixed') {
+        var bg = cs.backgroundColor
+        return !!(bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
+      }
+      el = el.parentElement
     }
     return false
   }
@@ -402,9 +409,17 @@
     attributeFilter: ['class'],
   })
 
-  // Watch for popovers (photo viewer, preferences, etc.) appearing or disappearing
+  // Watch for popovers (photo viewer, preferences, etc.) appearing or
+  // disappearing. Messenger mutates its DOM thousands of times while it
+  // boots, so coalesce the notifications into an occasional update instead
+  // of scanning per mutation batch.
+  var handleDebounce = 0
   var mediaObserver = new MutationObserver(function () {
-    updateHandle()
+    if (handleDebounce) return
+    handleDebounce = window.setTimeout(function () {
+      handleDebounce = 0
+      updateHandle()
+    }, 150)
   })
   mediaObserver.observe(document.body || document.documentElement, {
     childList: true,

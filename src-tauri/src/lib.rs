@@ -120,6 +120,13 @@ pub fn run() {
             GLOBAL_THEME_ENABLED.store(global_theme, Ordering::Relaxed);
             app.manage(settings);
 
+            // Sampling the desktop wallpaper decodes a full-size JPEG, which
+            // can take seconds. Never do that on the main thread: serve the
+            // fallback colour until the warm-up thread caches the real one.
+            if global_theme {
+                spawn_accent_warmup(app.handle().clone());
+            }
+
             let window = window::create_window(app)?;
 
             let chat = window::create_chat(&window, &sidebar, global_theme)?;
@@ -135,6 +142,43 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+static ACCENT_WARMING: AtomicBool = AtomicBool::new(false);
+
+/// Sample the desktop wallpaper for the global theme accent on a background
+/// thread. The app serves the fallback colour until this finishes, then
+/// re-applies the chat theme and acrylic tint with the real accent.
+pub fn spawn_accent_warmup(app: tauri::AppHandle) {
+    if accent::is_cached()
+        || ACCENT_WARMING.swap(true, Ordering::Relaxed)
+    {
+        return;
+    }
+
+    std::thread::spawn(move || {
+        accent::compute_and_cache();
+        ACCENT_WARMING.store(false, Ordering::Relaxed);
+
+        // The startup injection ran with the fallback colour while the
+        // wallpaper decoded here. Re-apply now that the cache is warm.
+        let app_for_apply = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let Some(window) = app_for_apply.get_window("main") else {
+                return;
+            };
+
+            let theme = CURRENT_THEME
+                .lock()
+                .map(|theme| theme.clone())
+                .unwrap_or_else(|_| "dark".into());
+            apply_theme_to_chat(&window, &theme);
+
+            if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
+                commands::apply_blur_effect(&window, true);
+            }
+        });
+    });
 }
 
 fn spawn_sidebar_settings_poll(app: tauri::AppHandle) {

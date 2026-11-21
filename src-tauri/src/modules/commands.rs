@@ -150,7 +150,7 @@ fn acrylic_tint() -> Option<(u8, u8, u8, u8)> {
     Some((r, g, b, alpha))
 }
 
-fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
+pub(crate) fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
     if enabled {
         #[cfg(target_os = "macos")]
         let _ = window.set_effects(Some(
@@ -185,6 +185,12 @@ pub fn set_global_theme(window: tauri::Window, enabled: bool) {
         .app_handle()
         .state::<crate::settings::SettingsStore>()
         .update_global_theme(enabled);
+
+    // The accent is sampled off-thread; kick that off now if this is the
+    // first time the global theme is enabled this session.
+    if enabled && !crate::accent::is_cached() {
+        crate::spawn_accent_warmup(window.app_handle().clone());
+    }
 
     if let Some(chat) = window.get_webview("chat_window") {
         let js = if enabled {
