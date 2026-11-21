@@ -218,6 +218,18 @@ pub fn get_global_theme() -> bool {
 }
 
 #[tauri::command]
+pub fn get_auto_updates(app: tauri::AppHandle) -> bool {
+    app.state::<crate::settings::SettingsStore>()
+        .auto_updates()
+}
+
+#[tauri::command]
+pub fn set_auto_updates(app: tauri::AppHandle, enabled: bool) {
+    app.state::<crate::settings::SettingsStore>()
+        .update_auto_updates(enabled);
+}
+
+#[tauri::command]
 pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
     WINDOW_NARROW.store(narrow, Ordering::Relaxed);
 

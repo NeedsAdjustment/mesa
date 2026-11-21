@@ -81,6 +81,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -112,6 +114,8 @@ pub fn run() {
             commands::set_global_theme,
             commands::get_global_theme,
             commands::set_window_narrow,
+            commands::get_auto_updates,
+            commands::set_auto_updates,
         ])
         .setup(|app| {
             let settings = settings::SettingsStore::load(app.handle());

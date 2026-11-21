@@ -20,6 +20,12 @@ struct SettingsFile {
     sidebar: SidebarSettings,
     #[serde(default, alias = "standard_theme")]
     global_theme: bool,
+    #[serde(default = "default_true")]
+    auto_updates: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 pub struct SettingsStore {
@@ -90,6 +96,27 @@ impl SettingsStore {
         true
     }
 
+    pub fn auto_updates(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|settings| settings.auto_updates)
+            .unwrap_or(true)
+    }
+
+    pub fn update_auto_updates(&self, enabled: bool) -> bool {
+        let Ok(mut settings) = self.inner.lock() else {
+            return false;
+        };
+
+        if settings.auto_updates == enabled {
+            return false;
+        }
+
+        settings.auto_updates = enabled;
+        self.save(&settings);
+        true
+    }
+
     fn save(&self, settings: &SettingsFile) {
         let Some(path) = &self.path else {
             return;
@@ -125,6 +152,7 @@ mod tests {
                 collapsed: true,
             },
             global_theme: true,
+            auto_updates: false,
         };
 
         let json = serde_json::to_string(&settings).expect("serialize settings");
@@ -133,6 +161,7 @@ mod tests {
         assert_eq!(parsed.sidebar.width, Some(280));
         assert!(parsed.sidebar.collapsed);
         assert!(parsed.global_theme);
+        assert!(!parsed.auto_updates);
     }
 
     #[test]
@@ -141,6 +170,8 @@ mod tests {
         assert_eq!(parsed.sidebar.width, None);
         assert!(!parsed.sidebar.collapsed);
         assert!(!parsed.global_theme);
+        // Auto-updates opt in rather than opt out.
+        assert!(parsed.auto_updates);
     }
 
     #[test]
