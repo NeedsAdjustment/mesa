@@ -1,16 +1,14 @@
 use std::sync::{LazyLock, Mutex};
 
-/// Mesa blue, used when the wallpaper cannot be sampled — and while the
-/// wallpaper is still being decoded on the warm-up thread.
+/// Mesa blue, the accent until the wallpaper has been sampled.
 pub const FALLBACK_ACCENT: (u8, u8, u8) = (8, 101, 254);
 
 static CACHED_ACCENT: LazyLock<Mutex<Option<(u8, u8, u8)>>> = LazyLock::new(|| Mutex::new(None));
 
-/// Returns the accent colour, falling back to Mesa blue until
-/// [`compute_and_cache`] has run.
+/// The cached accent, or the fallback until [`compute_and_cache`] has run.
 ///
-/// Never samples the wallpaper itself: decoding it takes seconds on large
-/// images, and callers run on the main thread.
+/// Never samples the wallpaper itself: the decode is seconds-slow and
+/// callers run on the main thread.
 pub fn accent_rgb() -> (u8, u8, u8) {
     CACHED_ACCENT
         .lock()

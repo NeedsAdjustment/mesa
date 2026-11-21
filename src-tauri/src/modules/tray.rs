@@ -178,8 +178,6 @@ pub fn apply_tray_mode(app: &AppHandle, enabled: bool) {
         // The panel width is fixed; the height may grow but not shrink.
         let _ = window.set_min_size(Some(tauri::LogicalSize::new(DOCK_WIDTH, DOCK_HEIGHT)));
         let _ = window.set_max_size(Some(tauri::LogicalSize::new(DOCK_WIDTH, MAX_DOCK_HEIGHT)));
-        // The window stays as it is until the tray icon has settled, then
-        // shrinks and glides to the dock in one motion.
         schedule_dock_glide(app);
     } else {
         let _ = window.set_skip_taskbar(false);
@@ -203,13 +201,9 @@ fn read_tray_rect(tray: &TrayIcon) -> Option<(i32, i32, i32, i32)> {
     Some((position.x, position.y, size.width, size.height))
 }
 
-/// Wait until Explorer has laid the tray icon out.
-///
-/// Right after the icon is (re)added, Shell_NotifyIconGetRect succeeds but
-/// reports a zero rect — docking against it parks the panel at a screen
-/// edge. Polling finds the exact moment the icon appears: its rect becomes
-/// nonzero and stays unchanged between two consecutive reads. The deadline
-/// is a safety net so a missing icon can never stall the transition.
+/// Wait until Explorer has laid the tray icon out: the rect is zero until
+/// then, and docking against it parks the panel at a screen edge. The
+/// deadline keeps a missing icon from stalling the dock.
 fn wait_for_settled_tray_rect(app: &AppHandle) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
@@ -307,23 +301,16 @@ fn monitor_hz(_monitor: Option<&tauri::Monitor>) -> u32 {
 
 /// Step interval for the glide, derived from the displays involved.
 ///
-/// Samples at the higher of the departure and destination refresh rates:
-/// oversampling a slower display is free (the compositor coalesces the extra
-/// steps), while undersampling a faster one is the only visible loss.
-/// Unknown rates fall back to 60Hz.
+/// Sample at the faster of the two: the compositor drops whatever it cannot
+/// present. Unknown rates assume 60Hz.
 fn glide_interval_ms(departure_hz: u32, destination_hz: u32) -> f64 {
     let hz = departure_hz.max(destination_hz);
     let hz = if hz == 0 { 60 } else { hz };
     (1000.0 / hz as f64).max(GLIDE_MIN_STEP_MS)
 }
 
-/// Glide the panel to the tray icon once it has settled.
-///
-/// The tray icon's rect is unreliable in the moment the icon is (re)added to
-/// the taskbar: Explorer has not laid the icon out yet, so
-/// Shell_NotifyIconGetRect reports a zero rect and the panel would dock
-/// against it. Poll for the exact moment the icon appears, then shrink and
-/// glide to the dock in a single motion.
+/// Glide the panel to the tray icon once it has settled, morphing position
+/// and size in one motion.
 fn schedule_dock_glide(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
@@ -437,17 +424,11 @@ fn restore_with_glide(window: &tauri::Window) {
     );
 }
 
-/// Animate the window from one position and size to another, morphing both
-/// per step with an ease-out curve.
+/// Morph the window from one `(x, y, width, height)` rect to another,
+/// sampled at the displays' refresh rates.
 ///
-/// Each step resizes the window, so the webviews re-render continuously —
-/// the same cost as a quick drag-resize, kept short on purpose. The step
-/// interval comes from the displays' refresh rates, so fast monitors get a
-/// proportionally smoother glide.
-///
-/// `from` and `to` are `(x, y, width, height)` in physical pixels. When
-/// `mark_docked` is set the panel is considered docked once the motion
-/// completes, so resize repinning only engages at the final geometry.
+/// `mark_docked`: consider the panel docked at the end, so resize repinning
+/// only engages at the final geometry.
 fn glide_window(
     window: &tauri::Window,
     from: (f64, f64, f64, f64),
@@ -556,7 +537,6 @@ fn tray_and_work_area(
     Some((tray_rect, work_area))
 }
 
-/// Size and position the window as a docked chat panel next to the tray icon.
 /// Where the docked panel should sit, at its standard size.
 fn dock_panel_target(app: &AppHandle, window: &tauri::Window) -> Option<ScreenRect> {
     let (tray_rect, work_area) = tray_and_work_area(app, window)?;
@@ -628,8 +608,8 @@ fn repin_docked(app: &AppHandle, window: &tauri::Window) {
     )));
 }
 
-/// While tray mode is active, closing the window hides it instead of exiting
-/// the app. Covers Alt+F4; the titlebar close button is hidden in tray mode.
+/// In tray mode a close request hides the panel; the titlebar has no close
+/// button, so this covers Alt+F4.
 pub fn setup_close_handler(window: &tauri::Window) {
     let window_for_event = window.clone();
     let window_for_close = window.clone();
@@ -662,9 +642,7 @@ fn remember_normal_bounds(window: &tauri::Window) {
     let Ok(position) = window.outer_position() else {
         return;
     };
-    // Inner size: the restore applies it through `set_size`, which sets the
-    // inner size. Storing the outer size here would grow the window by the
-    // invisible resize border on every tray-mode round trip.
+    // Outer position pairs with `set_position`, inner size with `set_size`.
     let Ok(size) = window.inner_size() else {
         return;
     };

@@ -342,9 +342,7 @@
     // Check for full-viewport backdrops (photo viewer, preferences, etc.)
     if (document.querySelector('div.xixxii4.x1h0vfkc')) return true
     // Fallback: if an opaque fixed-position element covers the viewport
-    // centre, treat it as an overlay. This used to scan every <div> in the
-    // document with forced layout reads, which could stall Messenger's
-    // boot sequence entirely.
+    // centre, treat it as an overlay.
     var el = document.elementFromPoint(
       Math.round(window.innerWidth / 2),
       Math.round(window.innerHeight / 2),
@@ -410,9 +408,8 @@
   })
 
   // Watch for popovers (photo viewer, preferences, etc.) appearing or
-  // disappearing. Messenger mutates its DOM thousands of times while it
-  // boots, so coalesce the notifications into an occasional update instead
-  // of scanning per mutation batch.
+  // disappearing. Coalesced: the boot sequence produces dense mutation
+  // batches.
   var handleDebounce = 0
   var mediaObserver = new MutationObserver(function () {
     if (handleDebounce) return

@@ -205,11 +205,8 @@ div[aria-label='Thread list'][role='navigation']>div {
   border: none !important;
 }
 
-/* collapsed sidebar: everything that doesn't fit an icon rail gets hidden
-   rather than squeezed. Messenger enforces a 300px sidebar floor in wide
-   windows, but in the docked panel the inline collapsed width wins, which
-   otherwise wraps the header and folds the search into the rail. Nothing
-   may wrap either, so no band reflows vertically. */
+/* collapsed sidebar: hide what doesn't fit an icon rail, and never let a
+   band wrap into a reflow */
 .sidebar-collapsed div[aria-label='Thread list'][role='navigation'],
 .sidebar-collapsed div[aria-label='Thread list'][role='navigation'] * {
   white-space: nowrap !important;
@@ -236,10 +233,9 @@ div[aria-label='Thread list'][role='navigation']>div {
   display: none !important;
 }
 
-/* the "Chats" heading text is clutter at any sidebar width; the compose
-   and menu buttons beside it stay. The heading row is pinned by its
-   descendant chain down to the menu button, and only children that don't
-   contain the buttons are hidden. */
+/* the "Chats" heading at any sidebar width. The row is pinned by its
+   descendant chain to the menu button; siblings containing the buttons
+   are kept. */
 div[aria-label='Thread list'][role='navigation']
   div:has(> div > div > div > div[aria-label='Settings, help and more'])
   > div:not(:has([aria-label='Settings, help and more'])) {
@@ -255,11 +251,8 @@ div[role='region']:has(div[role='log'])>div>div>div {
   border-top-left-radius: 0 !important;
 }
 
-/* with backdrop blur the chat pane is transparent, so draw its outline
-   ourselves: the line curves around the rounded corner and continues along
-   the top. Messenger's own divider lives on the wrappers above the rounded
-   element, which is why it renders as a straight line — hide those so only
-   the curved one remains. */
+/* with backdrop blur the chat pane is transparent: draw its outline on the
+   rounded element, and hide Messenger's straight divider on the wrappers */
 html.mesa-global-theme.backdrop-blur div[aria-label='Thread list'][role='navigation'],
 html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log']),
 html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log'])>div,
@@ -273,9 +266,7 @@ html.mesa-global-theme.backdrop-blur:not(.narrow-window) div[role='region']:has(
   border-top: 1px solid var(--mesa-chat-border) !important;
 }
 
-/* the sidebar drag handle draws its own straight line at the same pixel the
-   curved pane outline wants, and its z-index wins — hide it under blur so
-   only the curved line shows (the handle itself still drags fine) */
+/* the drag handle's border would overdraw the outline; hide it under blur */
 html.mesa-global-theme.backdrop-blur #mesa-sidebar-resize-handle {
   border-right-color: transparent !important;
 }
@@ -388,10 +379,8 @@ div[aria-label='Chats'][role='grid'] a[role='link'][aria-current='page'] {
   border-right-color: rgba(128, 128, 128, 0.5) !important;
 }
 
-/* empty chat state */
-/* Matched structurally so the theming applies the instant the pane renders
-   and un-applies the instant a chat log appears — no JS pass to wait for,
-   so there is never a flash of the unstyled original. */
+/* empty chat state — matched structurally so it is themed from first paint
+   and clears as soon as a chat log appears */
 div[role='main']:not(:has([role='log'])):has(i[data-visualcompletion='css-img']),
 div[role='main']:not(:has([role='log'])):has(i[data-visualcompletion='css-img']) * {
   background-color: transparent !important;

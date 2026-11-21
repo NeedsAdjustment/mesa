@@ -17,8 +17,8 @@ getVersion().then((v) => {
 
 const appWindow = getCurrentWindow()
 
-// Set by the tray mode section below; read here so the minimize button can
-// hide to the tray instead of minimising with no taskbar entry to restore from.
+// Set by the tray mode section below: the minimise button hides the panel
+// instead of minimising into a taskbar it no longer has an entry on.
 let trayModeEnabled = false
 
 document.getElementById('titlebar-minimize')?.addEventListener('click', () => {

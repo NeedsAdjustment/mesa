@@ -409,9 +409,7 @@
 
 /* ---- Tray mode ---- */
 
-/* The panel lives in the tray: no close affordance (hide via the tray icon or
-   the minimise button, quit via the tray menu) and nothing that could undock
-   the panel from the taskbar edge. */
+/* the panel lives in the tray: no close, nothing that could undock it */
 html.tray-mode #titlebar-close,
 html.tray-mode #titlebar-maximize {
   display: none;
