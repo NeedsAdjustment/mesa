@@ -7,9 +7,10 @@ use tauri::{
 use tauri_plugin_opener::open_url;
 
 use crate::{
-    BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, GLOBAL_THEME_ENABLED,
-    INITIAL_HEIGHT, INITIAL_WIDTH, INJECT_SCRIPT, IS_LOGGED_OUT, IS_LOGGING_OUT, MESSENGER_URL,
-    NAV_HANDLER_SCRIPT, SIDEBAR_RESIZE_SCRIPT, TITLEBAR_HEIGHT, WINDOW_NARROW,
+    BACKDROP_BLUR_ENABLED, CALL_WINDOW_COUNTER, CURRENT_THEME, DOCK_HEIGHT, DOCK_WIDTH,
+    GLOBAL_THEME_ENABLED, INITIAL_HEIGHT, INITIAL_WIDTH, INJECT_SCRIPT, IS_LOGGED_OUT,
+    MAX_DOCK_HEIGHT, MESSENGER_URL, NAV_HANDLER_SCRIPT, SIDEBAR_RESIZE_SCRIPT,
+    TITLEBAR_HEIGHT, WINDOW_NARROW,
     navigation::{
         NavigationAction, is_blank_url, is_call_url, is_internal_url, is_messages_page,
         navigation_action,
@@ -17,14 +18,29 @@ use crate::{
     settings::{SettingsStore, SidebarSettings},
 };
 
-pub fn create_window(app: &mut tauri::App) -> Result<tauri::Window, Box<dyn std::error::Error>> {
-    let window = WindowBuilder::new(app, "main")
+pub fn create_window(
+    app: &mut tauri::App,
+    start_hidden: bool,
+) -> Result<tauri::Window, Box<dyn std::error::Error>> {
+    let mut builder = WindowBuilder::new(app, "main")
         .inner_size(INITIAL_WIDTH, INITIAL_HEIGHT)
-        .min_inner_size(316.0, 400.0)
+        .min_inner_size(DOCK_WIDTH, 400.0)
         .title("Mesa")
         .decorations(false)
-        .transparent(true)
-        .build()?;
+        .transparent(true);
+
+    // Tray mode launches as just a tray icon; the panel is docked and shown
+    // on the first tray click. The docked panel width is fixed and its height
+    // may grow but not shrink.
+    if start_hidden {
+        builder = builder
+            .visible(false)
+            .skip_taskbar(true)
+            .min_inner_size(DOCK_WIDTH, DOCK_HEIGHT)
+            .max_inner_size(DOCK_WIDTH, MAX_DOCK_HEIGHT);
+    }
+
+    let window = builder.build()?;
     Ok(window)
 }
 
@@ -269,7 +285,6 @@ pub fn create_chat(
                 // Fallback for the document-start injection hooks. Both scripts
                 // are idempotent, so running them again is safe.
                 if is_messages_page(payload.url()) {
-                    IS_LOGGING_OUT.store(false, Ordering::Relaxed);
                     eprintln!("[mesa] CHAT CSS FALLBACK: {url_str}");
                     let _ = window.eval(INJECT_SCRIPT.as_str());
                     let _ = window.eval(SIDEBAR_RESIZE_SCRIPT);

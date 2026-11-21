@@ -40,12 +40,12 @@ Windows releases currently available [here](https://github.com/NeedsAdjustment/m
 - [x] Full `facebook.com/messages` functionality
 - [x] Theming support (`dark`/`light`/`system`)
 - [x] (Reasonably) robust CSS injection
-- [ ] Auto-updates _(Windows)_
+- [x] Auto-updates _(Windows)_
 - [ ] Native titlebar _(MacOS, Linux)_
 - [ ] MacOS & Linux builds
 - [ ] Icon Composer icon _(MacOS)_
 - [ ] Custom themes
-- [ ] Dock/Tray mode _(Windows, MacOS)_
+- [x] Dock/Tray mode _(Windows)_
 - [ ] ???
 
 ## Contributing

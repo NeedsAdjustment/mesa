@@ -2,6 +2,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
 import { listen } from '@tauri-apps/api/event'
+import { check, Update } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
 
 const TITLEBAR_HEIGHT = 32
 
@@ -10,12 +12,19 @@ console.info('Mesa frontend initialized')
 // Show the actual app version from tauri.conf.json
 getVersion().then((v) => {
   const el = document.getElementById('app-version')
-  if (el) el.textContent = `mesa v${v}`
+  if (el) el.textContent = `Mesa v${v}`
 })
 
 const appWindow = getCurrentWindow()
 
-document.getElementById('titlebar-minimize')?.addEventListener('click', () => appWindow.minimize())
+// Set by the tray mode section below: the minimise button hides the panel
+// instead of minimising into a taskbar it no longer has an entry on.
+let trayModeEnabled = false
+
+document.getElementById('titlebar-minimize')?.addEventListener('click', () => {
+  if (trayModeEnabled) appWindow.hide()
+  else appWindow.minimize()
+})
 document.getElementById('titlebar-maximize')?.addEventListener('click', () => appWindow.toggleMaximize())
 document.getElementById('titlebar-close')?.addEventListener('click', () => appWindow.close())
 
@@ -280,7 +289,7 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
 
 function applyGlobalThemeUi(enabled: boolean) {
   document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-    if (btn.textContent?.trim() === 'Global Theme') {
+    if (btn.textContent?.trim() === 'Normalised Chat Themes') {
       btn.classList.toggle('checked', enabled)
     }
   })
@@ -295,7 +304,7 @@ function setGlobalTheme(enabled: boolean) {
 invoke<boolean>('get_global_theme').then(applyGlobalThemeUi)
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-  if (btn.textContent?.trim() === 'Global Theme') {
+  if (btn.textContent?.trim() === 'Normalised Chat Themes') {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
       setGlobalTheme(!btn.classList.contains('checked'))
@@ -303,6 +312,61 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
     })
   }
 })
+
+// ---- Tray mode ----
+
+const trayModeBtn = document.getElementById('tray-mode-toggle')
+
+function applyTrayModeUi(enabled: boolean) {
+  trayModeEnabled = enabled
+  document.documentElement.classList.toggle('tray-mode', enabled)
+  trayModeBtn?.classList.toggle('checked', enabled)
+}
+
+function setTrayMode(enabled: boolean) {
+  applyTrayModeUi(enabled)
+  invoke('set_tray_mode', { enabled }).catch((error) =>
+    console.error('failed to set tray mode', error),
+  )
+}
+
+trayModeBtn?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  setTrayMode(!trayModeBtn.classList.contains('checked'))
+  closeMenusAndFocusChat()
+})
+
+// The durable value lives in Rust, so hydrate the menu from there.
+invoke<boolean>('get_tray_mode').then(applyTrayModeUi)
+
+// ---- Docked text size ----
+
+const DOCK_SHRINK_KEY = 'mesa:dock-shrink'
+
+function getDockShrink(): boolean {
+  return localStorage.getItem(DOCK_SHRINK_KEY) === 'true'
+}
+
+const dockShrinkBtn = document.getElementById('dock-shrink-toggle') as HTMLButtonElement | null
+
+function applyDockShrinkUi(enabled: boolean) {
+  dockShrinkBtn?.classList.toggle('checked', enabled)
+}
+
+function setDockShrink(enabled: boolean) {
+  localStorage.setItem(DOCK_SHRINK_KEY, String(enabled))
+  applyDockShrinkUi(enabled)
+  // Apply the step immediately when the panel is currently docked.
+  if (windowNarrow) stepChatZoom(enabled ? -1 : 1)
+}
+
+dockShrinkBtn?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  setDockShrink(!dockShrinkBtn.classList.contains('checked'))
+  closeMenusAndFocusChat()
+})
+
+applyDockShrinkUi(getDockShrink())
 
 // ---- File menu actions ----
 
@@ -324,14 +388,257 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
   }
 })
 
+// ---- Updates ----
+
+const UPDATE_CHECK_DELAY_MS = 10 * 1000
+const UPDATE_CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000
+const CHECK_UPDATES_LABEL = 'Check for Updates…'
+
+const checkUpdatesBtn = document.getElementById('check-updates') as HTMLButtonElement | null
+const autoUpdatesBtn = document.getElementById('auto-updates-toggle')
+const updatePillEl = document.getElementById('update-pill')
+const updatePillTextEl = document.getElementById('update-pill-text')
+const updatePillIconEl = updatePillEl?.querySelector('i') ?? null
+
+let pendingUpdate: Update | null = null
+let pendingUpdateDownloaded = false
+let updateInstalling = false
+let manualCheckRunning = false
+let checkUpdatesTimer: number | null = null
+let autoCheckTimeout: number | null = null
+let autoCheckInterval: number | null = null
+
+// Non-actionable states render dimmed and inert in the single File-menu
+// entry; `revertMs` restores the actionable label.
+function setCheckUpdatesLabel(text: string, revertMs = 0) {
+  if (!checkUpdatesBtn) return
+
+  if (checkUpdatesTimer !== null) {
+    window.clearTimeout(checkUpdatesTimer)
+    checkUpdatesTimer = null
+  }
+
+  checkUpdatesBtn.textContent = text
+  const actionable = text === CHECK_UPDATES_LABEL
+  checkUpdatesBtn.classList.toggle('dim', !actionable)
+  checkUpdatesBtn.disabled = !actionable
+
+  if (revertMs > 0) {
+    checkUpdatesTimer = window.setTimeout(() => {
+      checkUpdatesTimer = null
+      resetCheckUpdatesLabel()
+    }, revertMs)
+  }
+}
+
+function resetCheckUpdatesLabel() {
+  setCheckUpdatesLabel(CHECK_UPDATES_LABEL)
+}
+
+function showUpdatePill(state: 'downloading' | 'ready' | 'installing', version: string, detail = '') {
+  if (!updatePillEl) return
+
+  updatePillEl.classList.remove('hidden')
+  updatePillEl.classList.toggle('ready', state !== 'downloading')
+
+  if (updatePillIconEl) {
+    updatePillIconEl.className =
+      state === 'downloading' ? 'ph ph-spinner-gap' : 'ph ph-arrow-clockwise'
+  }
+
+  const label = state === 'installing' ? 'Installing…' : `v${version}`
+  if (updatePillTextEl) updatePillTextEl.textContent = detail ? `${label} ${detail}` : label
+
+  updateTitleVisibility()
+}
+
+function hideUpdatePill() {
+  updatePillEl?.classList.add('hidden')
+  updateTitleVisibility()
+}
+
+function downloadPendingUpdate() {
+  const update = pendingUpdate
+  if (!update || pendingUpdateDownloaded) return
+
+  let contentLength = 0
+  let downloaded = 0
+
+  update
+    .download((event) => {
+      switch (event.event) {
+        case 'Started':
+          contentLength = event.data.contentLength ?? 0
+          break
+        case 'Progress':
+          downloaded += event.data.chunkLength
+          if (contentLength > 0) {
+            showUpdatePill(
+              'downloading',
+              update.version,
+              `${Math.round((downloaded / contentLength) * 100)}%`,
+            )
+          }
+          break
+        case 'Finished':
+          pendingUpdateDownloaded = true
+          showUpdatePill('ready', update.version)
+          break
+      }
+    })
+    .then(() => {
+      pendingUpdateDownloaded = true
+      showUpdatePill('ready', update.version)
+    })
+    .catch((error) => {
+      console.error('failed to download update', error)
+      // Drop the pending update so a later check can retry from scratch.
+      update.close().catch(() => {})
+      pendingUpdate = null
+      pendingUpdateDownloaded = false
+      hideUpdatePill()
+    })
+}
+
+async function runUpdateCheck(manual: boolean) {
+  if (pendingUpdate) {
+    if (manual) {
+      setCheckUpdatesLabel(
+        pendingUpdateDownloaded
+          ? `Mesa v${pendingUpdate.version} is ready to install`
+          : `Downloading Mesa v${pendingUpdate.version}…`,
+        4000,
+      )
+    }
+    return
+  }
+
+  if (manual) {
+    if (manualCheckRunning) return
+    manualCheckRunning = true
+    setCheckUpdatesLabel('Checking…')
+  }
+
+  try {
+    const update = await check()
+
+    if (!update) {
+      if (manual) setCheckUpdatesLabel('Mesa is up to date', 4000)
+      return
+    }
+
+    pendingUpdate = update
+    pendingUpdateDownloaded = false
+    showUpdatePill('downloading', update.version)
+    downloadPendingUpdate()
+
+    if (manual) resetCheckUpdatesLabel()
+  } catch (error) {
+    console.error('failed to check for updates', error)
+    if (manual) setCheckUpdatesLabel('Update check failed', 4000)
+  } finally {
+    manualCheckRunning = false
+  }
+}
+
+async function installPendingUpdate() {
+  const update = pendingUpdate
+  if (!update || !pendingUpdateDownloaded || updateInstalling) return
+
+  updateInstalling = true
+  showUpdatePill('installing', update.version)
+
+  try {
+    // On Windows the installer runs passively, restarts the app itself and
+    // exits this process; relaunch() is the fallback for other platforms.
+    await update.install()
+    await relaunch()
+  } catch (error) {
+    console.error('failed to install update', error)
+    updateInstalling = false
+    showUpdatePill('ready', update.version)
+  }
+}
+
+function stopAutoUpdateChecks() {
+  if (autoCheckTimeout !== null) {
+    window.clearTimeout(autoCheckTimeout)
+    autoCheckTimeout = null
+  }
+  if (autoCheckInterval !== null) {
+    window.clearInterval(autoCheckInterval)
+    autoCheckInterval = null
+  }
+}
+
+function startAutoUpdateChecks() {
+  stopAutoUpdateChecks()
+  autoCheckTimeout = window.setTimeout(() => void runUpdateCheck(false), UPDATE_CHECK_DELAY_MS)
+  autoCheckInterval = window.setInterval(() => void runUpdateCheck(false), UPDATE_CHECK_INTERVAL_MS)
+}
+
+function applyAutoUpdatesUi(enabled: boolean) {
+  autoUpdatesBtn?.classList.toggle('checked', enabled)
+}
+
+function setAutoUpdates(enabled: boolean) {
+  applyAutoUpdatesUi(enabled)
+  invoke('set_auto_updates', { enabled }).catch((error) =>
+    console.error('failed to persist automatic updates setting', error),
+  )
+  if (enabled) startAutoUpdateChecks()
+  else stopAutoUpdateChecks()
+}
+
+autoUpdatesBtn?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  setAutoUpdates(!autoUpdatesBtn.classList.contains('checked'))
+  closeMenusAndFocusChat()
+})
+
+checkUpdatesBtn?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  void runUpdateCheck(true)
+})
+
+updatePillEl?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  void installPendingUpdate()
+})
+
+// The durable value lives in Rust, so hydrate the menu from there.
+invoke<boolean>('get_auto_updates').then((enabled) => {
+  applyAutoUpdatesUi(enabled)
+  if (enabled) startAutoUpdateChecks()
+})
+
 // ---- Narrow window ----
+
+let windowNarrow: boolean | null = null
+
+function stepChatZoom(direction: number) {
+  invoke<number>('get_chat_zoom')
+    .then((zoom) => {
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + direction * ZOOM_STEP))
+      return invoke('set_chat_zoom', { zoom: next })
+    })
+    .catch((error) => console.error('failed to adjust docked zoom', error))
+}
 
 // Messenger switches to its full-width mobile layout around 663px. The chat
 // script expands the sidebar and removes the resize handle when this is set.
+// With shrink on, docking steps the chat zoom one tick down and undocking
+// steps it back up.
 function updateNarrowWindow() {
-  invoke('set_window_narrow', { narrow: window.innerWidth <= 663 }).catch((error) =>
+  const narrow = window.innerWidth <= 663
+  invoke('set_window_narrow', { narrow }).catch((error) =>
     console.error('failed to update narrow window state', error),
   )
+
+  if (windowNarrow !== null && narrow !== windowNarrow && getDockShrink()) {
+    stepChatZoom(narrow ? -1 : 1)
+  }
+  windowNarrow = narrow
 }
 window.addEventListener('resize', updateNarrowWindow)
 updateNarrowWindow()
@@ -349,7 +656,9 @@ function updateTitleVisibility() {
   const text = appTitleTextEl.getBoundingClientRect()
   const menu = menuBarEl?.getBoundingClientRect()
   const downloadsMenu = document.querySelector<HTMLElement>('.downloads-menu:not(.hidden)')
-  const right = (downloadsMenu ?? controlsEl)?.getBoundingClientRect()
+  const updatePill = document.getElementById('update-pill')
+  const pill = updatePill?.classList.contains('hidden') ? null : updatePill
+  const right = (pill ?? downloadsMenu ?? controlsEl)?.getBoundingClientRect()
   const overlaps =
     (menu && text.left < menu.right + 6) ||
     (right && text.right > right.left - 6)

@@ -20,6 +20,14 @@ struct SettingsFile {
     sidebar: SidebarSettings,
     #[serde(default, alias = "standard_theme")]
     global_theme: bool,
+    #[serde(default = "default_true")]
+    auto_updates: bool,
+    #[serde(default)]
+    tray_mode: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 pub struct SettingsStore {
@@ -90,6 +98,48 @@ impl SettingsStore {
         true
     }
 
+    pub fn auto_updates(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|settings| settings.auto_updates)
+            .unwrap_or(true)
+    }
+
+    pub fn update_auto_updates(&self, enabled: bool) -> bool {
+        let Ok(mut settings) = self.inner.lock() else {
+            return false;
+        };
+
+        if settings.auto_updates == enabled {
+            return false;
+        }
+
+        settings.auto_updates = enabled;
+        self.save(&settings);
+        true
+    }
+
+    pub fn tray_mode(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|settings| settings.tray_mode)
+            .unwrap_or(false)
+    }
+
+    pub fn update_tray_mode(&self, enabled: bool) -> bool {
+        let Ok(mut settings) = self.inner.lock() else {
+            return false;
+        };
+
+        if settings.tray_mode == enabled {
+            return false;
+        }
+
+        settings.tray_mode = enabled;
+        self.save(&settings);
+        true
+    }
+
     fn save(&self, settings: &SettingsFile) {
         let Some(path) = &self.path else {
             return;
@@ -125,6 +175,8 @@ mod tests {
                 collapsed: true,
             },
             global_theme: true,
+            auto_updates: false,
+            tray_mode: true,
         };
 
         let json = serde_json::to_string(&settings).expect("serialize settings");
@@ -133,6 +185,8 @@ mod tests {
         assert_eq!(parsed.sidebar.width, Some(280));
         assert!(parsed.sidebar.collapsed);
         assert!(parsed.global_theme);
+        assert!(!parsed.auto_updates);
+        assert!(parsed.tray_mode);
     }
 
     #[test]
@@ -141,6 +195,8 @@ mod tests {
         assert_eq!(parsed.sidebar.width, None);
         assert!(!parsed.sidebar.collapsed);
         assert!(!parsed.global_theme);
+        // Auto-updates opt in rather than opt out.
+        assert!(parsed.auto_updates);
     }
 
     #[test]

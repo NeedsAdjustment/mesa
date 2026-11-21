@@ -67,6 +67,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
   width: auto;
   margin: 0;
   padding: 6px 12px;
@@ -87,6 +88,11 @@
 }
 
 .menu-entry.text {
+  cursor: default;
+}
+
+.menu-entry.dim {
+  opacity: 0.55;
   cursor: default;
 }
 
@@ -299,6 +305,47 @@
   }
 }
 
+/* ---- Update pill ---- */
+
+.update-pill {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  margin: 5px 4px 5px 0;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--titlebar-icon-color);
+  font-family: var(--titlebar-font);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.update-pill.hidden {
+  display: none;
+}
+
+.update-pill .ph-spinner-gap {
+  animation: mesa-spin 1s linear infinite;
+}
+
+.update-pill.ready {
+  color: var(--facebook-blue);
+  border-color: rgba(8, 102, 255, 0.45);
+  cursor: pointer;
+}
+
+.update-pill.ready:hover {
+  background: rgba(8, 102, 255, 0.12);
+}
+
+.update-pill.ready:active {
+  background: rgba(8, 102, 255, 0.2);
+}
+
 @media (max-width: 399px) {
   .title-text {
     color: transparent;
@@ -358,6 +405,18 @@
   width: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+/* ---- Tray mode ---- */
+
+/* the panel lives in the tray: no close, nothing that could undock it */
+html.tray-mode #titlebar-close,
+html.tray-mode #titlebar-maximize {
+  display: none;
+}
+
+html.tray-mode .controls {
+  width: 46px;
 }
 
 .menu-entry .check-icon {

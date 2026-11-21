@@ -19,7 +19,13 @@
           <button class="menu-entry">Log Out</button>
           <button class="menu-entry">Show DevTools</button>
           <div class="divider"></div>
-          <span id="app-version" class="menu-entry text">mesa</span>
+          <button id="check-updates" class="menu-entry" type="button">Check for Updates…</button>
+          <button id="auto-updates-toggle" class="menu-entry" type="button">
+            <div class="inline-text">Automatic Updates</div>
+            <i class="ph ph-check check-icon"></i>
+          </button>
+          <div class="divider"></div>
+          <span id="app-version" class="menu-entry text dim">mesa</span>
         </div>
       </div>
       <div class="menu">
@@ -66,7 +72,16 @@
             <i class="ph ph-check check-icon"></i>
           </button>
           <button class="menu-entry">
-            <div class="inline-text">Global Theme</div>
+            <div class="inline-text">Normalised Chat Themes</div>
+            <i class="ph ph-check check-icon"></i>
+          </button>
+          <div class="divider"></div>
+          <button id="tray-mode-toggle" class="menu-entry" type="button">
+            <div class="inline-text">Dock to Tray</div>
+            <i class="ph ph-check check-icon"></i>
+          </button>
+          <button id="dock-shrink-toggle" class="menu-entry" type="button">
+            <div class="inline-text">Shrink Docked Text Size</div>
             <i class="ph ph-check check-icon"></i>
           </button>
           <div class="divider"></div>
@@ -78,7 +93,11 @@
       </div>
     </div>
     <div class="title" data-tauri-drag-region></div>
-    <div class="title-text"><span id="app-title-text">mesa</span></div>
+    <div class="title-text"><span id="app-title-text">Mesa</span></div>
+    <button id="update-pill" class="update-pill hidden" type="button" title="Update mesa">
+      <i class="ph ph-arrow-clockwise"></i>
+      <span id="update-pill-text"></span>
+    </button>
     <div class="menu downloads-menu hidden">
       <button id="downloads-toggle" class="menu-trigger downloads-toggle" title="Downloads" aria-label="Downloads" aria-haspopup="true" type="button">
         <i class="ph ph-download-simple"></i>

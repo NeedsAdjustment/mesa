@@ -9,6 +9,7 @@ pub use modules::accent;
 pub use modules::commands;
 pub use modules::navigation;
 pub use modules::settings;
+pub use modules::tray;
 pub use modules::window;
 pub use modules::zoom;
 
@@ -23,6 +24,15 @@ pub const TITLEBAR_HEIGHT: f64 = 32.;
 pub const INITIAL_WIDTH: f64 = 800.;
 pub const INITIAL_HEIGHT: f64 = 600.;
 
+/// Docked chat panel size in tray mode, in logical pixels. The width matches
+/// the window minimum so Messenger uses its narrow layout.
+pub const DOCK_WIDTH: f64 = 316.;
+pub const DOCK_HEIGHT: f64 = 520.;
+
+/// Upper bound for the docked panel height. Only exists because the width
+/// has to be pinned through a max constraint; effectively unlimited.
+pub const MAX_DOCK_HEIGHT: f64 = 1_000_000.0;
+
 pub const ZOOM_MIN: f64 = 0.5;
 pub const ZOOM_MAX: f64 = 2.0;
 pub const ZOOM_STEP: f64 = 0.1;
@@ -32,7 +42,6 @@ pub const ZOOM_STEP: f64 = 0.1;
 pub static CURRENT_ZOOM: Mutex<f64> = Mutex::new(1.0);
 pub static CALL_WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub static IS_LOGGED_OUT: AtomicBool = AtomicBool::new(true);
-pub static IS_LOGGING_OUT: AtomicBool = AtomicBool::new(false);
 pub static BACKDROP_BLUR_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static WINDOW_NARROW: AtomicBool = AtomicBool::new(false);
 pub static GLOBAL_THEME_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -49,6 +58,10 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
 
 pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
 pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
+
+/// Reads the sidebar state out of the chat document: the live collapse class
+/// plus the stored width, as `[collapsed ? 1 : 0, width | null]`.
+pub(crate) const SIDEBAR_STATE_SCRIPT: &str = "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsedKey = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsedKey === null) return null; const collapsed = document.documentElement.classList.contains('sidebar-collapsed'); return [collapsed ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()";
 
 // ---- Shared helpers ----
 
@@ -80,7 +93,20 @@ pub fn apply_theme_to_chat(window: &tauri::Window, theme: &str) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                // The app owns visibility: launching into tray mode must stay
+                // hidden until the first tray click, so the plugin only
+                // manages geometry.
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -112,24 +138,49 @@ pub fn run() {
             commands::set_global_theme,
             commands::get_global_theme,
             commands::set_window_narrow,
+            commands::get_auto_updates,
+            commands::set_auto_updates,
+            commands::get_tray_mode,
+            commands::set_tray_mode,
         ])
         .setup(|app| {
             let settings = settings::SettingsStore::load(app.handle());
             let sidebar = settings.sidebar();
             let global_theme = settings.global_theme();
+            let tray_mode = settings.tray_mode();
             GLOBAL_THEME_ENABLED.store(global_theme, Ordering::Relaxed);
+            tray::TRAY_MODE_ENABLED.store(tray_mode, Ordering::Relaxed);
             app.manage(settings);
 
-            let window = window::create_window(app)?;
+            // The wallpaper decode is seconds-slow; it must not run on the
+            // main thread.
+            if global_theme {
+                spawn_accent_warmup(app.handle().clone());
+            }
+
+            // The tray icon exists for the whole session; it is only visible
+            // while tray mode is on.
+            tray::create_tray(app.handle(), tray_mode)?;
+
+            // In tray mode the app starts as just a tray icon; the panel is
+            // shown (and docked) on the first tray click.
+            let window = window::create_window(app, tray_mode)?;
 
             let chat = window::create_chat(&window, &sidebar, global_theme)?;
             let titlebar = window::create_titlebar(&window)?;
 
             window::apply_layout(&window, &titlebar, &chat);
             window::setup_resize_handler(&window, &titlebar, &chat);
+            tray::setup_close_handler(&window);
+            tray::setup_dock_resize_handler(app.handle(), &window);
             zoom::setup_zoom_shortcuts(app, &window);
 
-            spawn_sidebar_settings_poll(app.handle().clone());
+            // WebView2 controller creation re-shows the host window even
+            // when it was built hidden, so enforce the tray-mode launch
+            // state once the webviews exist.
+            if tray_mode {
+                let _ = window.hide();
+            }
 
             Ok(())
         })
@@ -137,47 +188,44 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-fn spawn_sidebar_settings_poll(app: tauri::AppHandle) {
+static ACCENT_WARMING: AtomicBool = AtomicBool::new(false);
+
+/// Sample the desktop wallpaper for the global theme accent on a background
+/// thread. The app serves the fallback colour until this finishes, then
+/// re-applies the chat theme and acrylic tint with the real accent.
+pub fn spawn_accent_warmup(app: tauri::AppHandle) {
+    if accent::is_cached()
+        || ACCENT_WARMING.swap(true, Ordering::Relaxed)
+    {
+        return;
+    }
+
     std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(500));
+        accent::compute_and_cache();
+        ACCENT_WARMING.store(false, Ordering::Relaxed);
 
-            if crate::IS_LOGGING_OUT.load(std::sync::atomic::Ordering::Relaxed) {
-                continue;
+        // Re-apply the theme and tint with the real accent now that the
+        // cache is warm.
+        let app_for_apply = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let Some(window) = app_for_apply.get_window("main") else {
+                return;
+            };
+
+            let theme = CURRENT_THEME
+                .lock()
+                .map(|theme| theme.clone())
+                .unwrap_or_else(|_| "dark".into());
+            apply_theme_to_chat(&window, &theme);
+
+            if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
+                commands::apply_blur_effect(&window, true);
             }
-
-            let Some(window) = app.get_window("main") else {
-                continue;
-            };
-            let Some(chat) = window.get_webview("chat_window") else {
-                continue;
-            };
-            let Ok(url) = chat.url() else {
-                continue;
-            };
-            if !navigation::is_messages_page(&url) {
-                continue;
-            }
-
-            let app_for_callback = app.clone();
-            let _ = chat.eval_with_callback(
-                "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsedKey = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsedKey === null) return null; const collapsed = document.documentElement.classList.contains('sidebar-collapsed'); return [collapsed ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()",
-                move |result| {
-                    let Some((width, collapsed)) = parse_sidebar_poll_result(result.trim())
-                    else {
-                        return;
-                    };
-
-                    app_for_callback
-                        .state::<settings::SettingsStore>()
-                        .update_sidebar(width, collapsed);
-                },
-            );
-        }
+        });
     });
 }
 
-fn parse_sidebar_poll_result(result: &str) -> Option<(Option<u32>, bool)> {
+pub(crate) fn parse_sidebar_state(result: &str) -> Option<(Option<u32>, bool)> {
     let value: serde_json::Value = serde_json::from_str(result.trim()).ok()?;
     let value = match value {
         serde_json::Value::String(inner) => {
@@ -209,17 +257,14 @@ mod tests {
     }
 
     #[test]
-    fn parses_sidebar_poll_results() {
+    fn parses_sidebar_state() {
+        assert_eq!(parse_sidebar_state("[0,280]"), Some((Some(280), false)));
+        assert_eq!(parse_sidebar_state("[1,null]"), Some((None, true)));
         assert_eq!(
-            parse_sidebar_poll_result("[0,280]"),
-            Some((Some(280), false))
-        );
-        assert_eq!(parse_sidebar_poll_result("[1,null]"), Some((None, true)));
-        assert_eq!(
-            parse_sidebar_poll_result("\"[0, 300.4]\""),
+            parse_sidebar_state("\"[0, 300.4]\""),
             Some((Some(300), false))
         );
-        assert_eq!(parse_sidebar_poll_result("null"), None);
-        assert_eq!(parse_sidebar_poll_result(""), None);
+        assert_eq!(parse_sidebar_state("null"), None);
+        assert_eq!(parse_sidebar_state(""), None);
     }
 }

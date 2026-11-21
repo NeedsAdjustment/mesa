@@ -14,77 +14,6 @@
   const styleId = __STYLE_ID__
   const css = __CSS__
 
-  const ensureEmptyChat = () => {
-    const main = document.querySelector("div[role='main']")
-    if (!main) return
-
-    const icon = main.querySelector("i[data-visualcompletion='css-img']")
-    const heading = main.querySelector('h3')
-    const log = main.querySelector("[role='log']")
-    const isEmpty =
-      !log &&
-      !!icon &&
-      !!heading &&
-      /no chats? selected|select a chat|choose a chat/i.test(heading.innerText || '')
-
-    if (!isEmpty) {
-      main.querySelectorAll('.mesa-empty-chat').forEach((el) => {
-        el.classList.remove('mesa-empty-chat')
-      })
-      main.querySelectorAll('i.mesa-empty-icon').forEach((el) => {
-        el.classList.remove('mesa-empty-icon')
-      })
-      return
-    }
-
-    const marked = main.querySelector('.mesa-empty-chat')
-    if (icon.classList.contains('mesa-empty-icon') && marked) return
-
-    icon.classList.add('mesa-empty-icon')
-
-    let node = icon.parentElement
-    while (node && node !== main) {
-      const background = window.getComputedStyle(node).backgroundColor
-      if (background && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') {
-        node.classList.add('mesa-empty-chat')
-        break
-      }
-      node = node.parentElement
-    }
-  }
-
-  const markDraftLabels = () => {
-    const sidebar = document.querySelector("div[aria-label='Thread list'][role='navigation']")
-    if (!sidebar) return
-
-    for (const label of sidebar.querySelectorAll('span.mesa-draft-label')) {
-      if (!/^Draft:?$/i.test(label.textContent.trim())) {
-        label.classList.remove('mesa-draft-label')
-      }
-    }
-
-    for (const span of sidebar.querySelectorAll('span')) {
-      if (
-        span.childElementCount === 0 &&
-        /^Draft:?$/i.test(span.textContent.trim()) &&
-        !span.classList.contains('mesa-draft-label')
-      ) {
-        span.classList.add('mesa-draft-label')
-      }
-    }
-  }
-
-  const runMaintenance = () => {
-    ensureStyle()
-    ensureEmptyChat()
-    markDraftLabels()
-  }
-
-  const startMaintenance = () => {
-    if (window.__mesaMaintenanceTimer) return
-    window.__mesaMaintenanceTimer = setInterval(runMaintenance, 500)
-  }
-
   const ensureStyle = () => {
     const root = document.documentElement
     if (!root) return false
@@ -112,6 +41,75 @@
     return true
   }
 
+  const markDraftLabels = () => {
+    const sidebar = document.querySelector("div[aria-label='Thread list'][role='navigation']")
+    if (!sidebar) return
+
+    for (const label of sidebar.querySelectorAll('span.mesa-draft-label')) {
+      if (!/^Draft:?$/i.test(label.textContent.trim())) {
+        label.classList.remove('mesa-draft-label')
+      }
+    }
+
+    for (const span of sidebar.querySelectorAll('span')) {
+      if (
+        span.childElementCount === 0 &&
+        /^Draft:?$/i.test(span.textContent.trim()) &&
+        !span.classList.contains('mesa-draft-label')
+      ) {
+        span.classList.add('mesa-draft-label')
+      }
+    }
+  }
+
+  const startWatchers = () => {
+    if (window.__mesaTweaksWatchers) return
+    window.__mesaTweaksWatchers = true
+
+    // Restore the style element if Messenger ever rewrites <head>.
+    const styleWatcher = new MutationObserver(() => ensureStyle())
+    styleWatcher.observe(document.head || document.documentElement, { childList: true })
+
+    let draftTimer = 0
+    const markDraftsSoon = () => {
+      if (draftTimer) return
+      draftTimer = window.setTimeout(() => {
+        draftTimer = 0
+        markDraftLabels()
+      }, 150)
+    }
+
+    const watchThreads = () => {
+      const grid = document.querySelector("div[aria-label='Chats'][role='grid']")
+      if (!grid) return false
+
+      const watcher = new MutationObserver(() => {
+        if (!grid.isConnected) {
+          // React replaced the grid; re-attach to the new one.
+          watcher.disconnect()
+          waitForThreads()
+          return
+        }
+        markDraftsSoon()
+      })
+      watcher.observe(grid, { childList: true, subtree: true })
+      markDraftLabels()
+      return true
+    }
+
+    // Temporary: poll only until the thread list mounts, then stop.
+    const waitForThreads = () => {
+      const deadline = Date.now() + 20000
+      const bootTimer = window.setInterval(() => {
+        if (watchThreads() || Date.now() > deadline) {
+          window.clearInterval(bootTimer)
+        }
+      }, 300)
+    }
+
+    waitForThreads()
+  }
+
   const install = () => {
     if (!ensureStyle()) return false
 
@@ -120,15 +118,7 @@
       root.classList.toggle('mesa-global-theme', !!window.__mesaGlobalTheme)
     }
 
-    // Older injections used a document-wide MutationObserver. It can stall
-    // Messenger's E2EE conversation renderer, so remove it if still present.
-    if (window.__mesaCssObserver) {
-      window.__mesaCssObserver.disconnect()
-      window.__mesaCssObserver = null
-    }
-
-    startMaintenance()
-    runMaintenance()
+    startWatchers()
 
     if (!window.__mesaTweaksInstalled) {
       window.__mesaTweaksInstalled = true

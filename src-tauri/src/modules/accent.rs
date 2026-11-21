@@ -1,21 +1,36 @@
 use std::sync::{LazyLock, Mutex};
 
-/// Mesa blue, used when the wallpaper cannot be sampled.
+/// Mesa blue, the accent until the wallpaper has been sampled.
 pub const FALLBACK_ACCENT: (u8, u8, u8) = (8, 101, 254);
 
 static CACHED_ACCENT: LazyLock<Mutex<Option<(u8, u8, u8)>>> = LazyLock::new(|| Mutex::new(None));
 
-/// Returns a usable accent colour derived from the desktop wallpaper.
+/// The cached accent, or the fallback until [`compute_and_cache`] has run.
+///
+/// Never samples the wallpaper itself: the decode is seconds-slow and
+/// callers run on the main thread.
+pub fn accent_rgb() -> (u8, u8, u8) {
+    CACHED_ACCENT
+        .lock()
+        .ok()
+        .and_then(|cache| *cache)
+        .unwrap_or(FALLBACK_ACCENT)
+}
+
+/// Whether [`compute_and_cache`] has already produced a colour.
+pub fn is_cached() -> bool {
+    CACHED_ACCENT
+        .lock()
+        .map(|cache| cache.is_some())
+        .unwrap_or(false)
+}
+
+/// Samples the desktop wallpaper and caches the result. Blocking and
+/// CPU-heavy — call from a background thread only.
 ///
 /// The sampled colour is normalised to a medium-lightness, moderately
 /// saturated tone so it remains legible on both light and dark acrylic.
-pub fn accent_rgb() -> (u8, u8, u8) {
-    if let Ok(cache) = CACHED_ACCENT.lock()
-        && let Some(accent) = *cache
-    {
-        return accent;
-    }
-
+pub fn compute_and_cache() -> (u8, u8, u8) {
     let accent = detect_wallpaper_accent().unwrap_or(FALLBACK_ACCENT);
     eprintln!(
         "[mesa] global theme accent: #{:02x}{:02x}{:02x}",
@@ -213,6 +228,14 @@ fn hsl_to_rgb(hue: f32, saturation: f32, lightness: f32) -> (f32, f32, f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cold_cache_serves_the_fallback_without_decoding() {
+        // Nothing warms the cache in the test process, so a cold read must
+        // return the fallback immediately rather than sample the wallpaper.
+        assert!(!is_cached());
+        assert_eq!(accent_rgb(), FALLBACK_ACCENT);
+    }
 
     #[test]
     fn hsl_round_trip_preserves_hue_and_saturation() {

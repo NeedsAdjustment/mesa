@@ -84,28 +84,41 @@ pub fn show_devtools(window: tauri::Window) {
 
 #[tauri::command]
 pub fn logout(window: tauri::Window) {
-    crate::IS_LOGGING_OUT.store(true, Ordering::Relaxed);
-
     if let Some(chat) = window.get_webview("chat_window") {
-        // Kill the SPA by clearing the document in-place. This removes
-        // all JavaScript state and event listeners (including any
-        // beforeunload handler) without triggering a navigation.
-        let _ = chat.eval(
-            "document.open(); document.write('<!DOCTYPE html><html><body>Logging out...</body></html>'); document.close();",
-        );
+        // Persist the sidebar state before the webview data is wiped; the
+        // durable copy restores it after logging back in.
+        let app = window.app_handle().clone();
+        let _ = chat.eval_with_callback(crate::SIDEBAR_STATE_SCRIPT, move |result| {
+            if let Some((width, collapsed)) = crate::parse_sidebar_state(result.trim()) {
+                app.state::<crate::settings::SettingsStore>()
+                    .update_sidebar(width, collapsed);
+            }
 
-        // Clear all cookies and storage. The SPA is already dead so
-        // it can't detect or interfere with this.
-        let _ = chat.clear_all_browsing_data();
+            let Some(chat) = app
+                .get_window("main")
+                .and_then(|window| window.get_webview("chat_window"))
+            else {
+                return;
+            };
 
-        // Navigate to the Messenger URL using the Tauri-level API.
-        // No beforeunload to block it (SPA was killed above).
-        // Facebook sees no session cookies and redirects to /login.php,
-        // which is now in the allowlist — so the login page loads
-        // right in the webview.
-        if let Ok(url) = Url::parse(MESSENGER_URL) {
-            let _ = chat.navigate(url);
-        }
+            // Kill the SPA by clearing the document in-place. This removes
+            // all JavaScript state and event listeners (including any
+            // beforeunload handler) without triggering a navigation.
+            let _ = chat.eval(
+                "document.open(); document.write('<!DOCTYPE html><html><body>Logging out...</body></html>'); document.close();",
+            );
+
+            // Clear all cookies and storage. The SPA is already dead so
+            // it can't detect or interfere with this.
+            let _ = chat.clear_all_browsing_data();
+
+            // With the SPA dead and cookies cleared, Facebook redirects to
+            // /login.php, which is in the allowlist, so the login page
+            // loads right in the webview.
+            if let Ok(url) = Url::parse(MESSENGER_URL) {
+                let _ = chat.navigate(url);
+            }
+        });
     }
 }
 
@@ -150,7 +163,7 @@ fn acrylic_tint() -> Option<(u8, u8, u8, u8)> {
     Some((r, g, b, alpha))
 }
 
-fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
+pub(crate) fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
     if enabled {
         #[cfg(target_os = "macos")]
         let _ = window.set_effects(Some(
@@ -186,6 +199,11 @@ pub fn set_global_theme(window: tauri::Window, enabled: bool) {
         .state::<crate::settings::SettingsStore>()
         .update_global_theme(enabled);
 
+    // Start the accent warm-up if it hasn't run yet.
+    if enabled && !crate::accent::is_cached() {
+        crate::spawn_accent_warmup(window.app_handle().clone());
+    }
+
     if let Some(chat) = window.get_webview("chat_window") {
         let js = if enabled {
             "window.__mesaGlobalTheme = true; document.documentElement.classList.add('mesa-global-theme')"
@@ -209,6 +227,31 @@ pub fn set_global_theme(window: tauri::Window, enabled: bool) {
 #[tauri::command]
 pub fn get_global_theme() -> bool {
     GLOBAL_THEME_ENABLED.load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+pub fn get_auto_updates(app: tauri::AppHandle) -> bool {
+    app.state::<crate::settings::SettingsStore>()
+        .auto_updates()
+}
+
+#[tauri::command]
+pub fn set_auto_updates(app: tauri::AppHandle, enabled: bool) {
+    app.state::<crate::settings::SettingsStore>()
+        .update_auto_updates(enabled);
+}
+
+#[tauri::command]
+pub fn get_tray_mode() -> bool {
+    crate::tray::TRAY_MODE_ENABLED.load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+pub fn set_tray_mode(app: tauri::AppHandle, enabled: bool) {
+    crate::tray::TRAY_MODE_ENABLED.store(enabled, Ordering::Relaxed);
+    app.state::<crate::settings::SettingsStore>()
+        .update_tray_mode(enabled);
+    crate::tray::apply_tray_mode(&app, enabled);
 }
 
 #[tauri::command]
