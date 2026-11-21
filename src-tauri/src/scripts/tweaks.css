@@ -205,6 +205,47 @@ div[aria-label='Thread list'][role='navigation']>div {
   border: none !important;
 }
 
+/* collapsed sidebar: everything that doesn't fit an icon rail gets hidden
+   rather than squeezed. Messenger enforces a 300px sidebar floor in wide
+   windows, but in the docked panel the inline collapsed width wins, which
+   otherwise wraps the header and folds the search into the rail. Nothing
+   may wrap either, so no band reflows vertically. */
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'],
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'] * {
+  white-space: nowrap !important;
+}
+
+/* the header band: "Chats" title plus the compose and menu buttons */
+.sidebar-collapsed
+  div[aria-label='Thread list'][role='navigation']
+  div:not(:has(div[aria-label='Chats'][role='grid'])):has([aria-label='Settings, help and more']) {
+  display: none !important;
+}
+
+/* the search band */
+.sidebar-collapsed
+  div[aria-label='Thread list'][role='navigation']
+  div:not(:has(div[aria-label='Chats'][role='grid'])):has(input[aria-label='Search Messenger']) {
+  display: none !important;
+}
+
+/* the filter tab band (All / Unread / Groups / More) */
+.sidebar-collapsed
+  div[aria-label='Thread list'][role='navigation']
+  div:not(:has(div[aria-label='Chats'][role='grid'])):has([role='tablist']) {
+  display: none !important;
+}
+
+/* the "Chats" heading text is clutter at any sidebar width; the compose
+   and menu buttons beside it stay. The heading row is pinned by its
+   descendant chain down to the menu button, and only children that don't
+   contain the buttons are hidden. */
+div[aria-label='Thread list'][role='navigation']
+  div:has(> div > div > div > div[aria-label='Settings, help and more'])
+  > div:not(:has([aria-label='Settings, help and more'])) {
+  display: none !important;
+}
+
 /* add tasteful corner rounding — removed when narrow */
 div[role='region']:has(div[role='log'])>div>div>div {
   border-top-left-radius: 12px !important;
@@ -212,6 +253,38 @@ div[role='region']:has(div[role='log'])>div>div>div {
 
 .narrow-window div[role='region']:has(div[role='log'])>div>div>div {
   border-top-left-radius: 0 !important;
+}
+
+/* with backdrop blur the chat pane is transparent, so draw its outline
+   ourselves: the line curves around the rounded corner and continues along
+   the top. Messenger's own divider lives on the wrappers above the rounded
+   element, which is why it renders as a straight line — hide those so only
+   the curved one remains. */
+html.mesa-global-theme.backdrop-blur div[aria-label='Thread list'][role='navigation'],
+html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log']),
+html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log'])>div,
+html.mesa-global-theme.backdrop-blur div[role='region']:has(div[role='log'])>div>div {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html.mesa-global-theme.backdrop-blur:not(.narrow-window) div[role='region']:has(div[role='log'])>div>div>div {
+  border-left: 1px solid var(--mesa-chat-border) !important;
+  border-top: 1px solid var(--mesa-chat-border) !important;
+}
+
+/* the sidebar drag handle draws its own straight line at the same pixel the
+   curved pane outline wants, and its z-index wins — hide it under blur so
+   only the curved line shows (the handle itself still drags fine) */
+html.mesa-global-theme.backdrop-blur #mesa-sidebar-resize-handle {
+  border-right-color: transparent !important;
+}
+
+/* the branded empty pane gets the same curved outline */
+html.mesa-global-theme.backdrop-blur:not(.narrow-window) div[role='main']:not(:has([role='log']))>div>div>div {
+  border-top-left-radius: 12px !important;
+  border-left: 1px solid var(--mesa-chat-border) !important;
+  border-top: 1px solid var(--mesa-chat-border) !important;
 }
 
 /* hidden items */
@@ -295,7 +368,8 @@ div[aria-label='Chats'][role='grid'] a[role='link'][aria-current='page'] {
   padding: 0 !important;
 }
 
-.sidebar-collapsed a[role='link']>div>div {
+.sidebar-collapsed a[role='link']>div>div,
+.sidebar-collapsed div[aria-label='Thread list'][role='navigation'] div[role='button']>div>div {
   justify-content: center !important;
   transition: justify-content 100ms ease-in-out !important;
 }
@@ -315,11 +389,16 @@ div[aria-label='Chats'][role='grid'] a[role='link'][aria-current='page'] {
 }
 
 /* empty chat state */
-.mesa-empty-chat {
+/* Matched structurally so the theming applies the instant the pane renders
+   and un-applies the instant a chat log appears — no JS pass to wait for,
+   so there is never a flash of the unstyled original. */
+div[role='main']:not(:has([role='log'])):has(i[data-visualcompletion='css-img']),
+div[role='main']:not(:has([role='log'])):has(i[data-visualcompletion='css-img']) * {
   background-color: transparent !important;
+  box-shadow: none !important;
 }
 
-i.mesa-empty-icon[data-visualcompletion='css-img'] {
+div[role='main']:not(:has([role='log'])):has(i[data-visualcompletion='css-img']) i[data-visualcompletion='css-img'] {
   background-image: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj48c3ZnIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCA0MjY3IDQyNjciIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgeG1sbnM6c2VyaWY9Imh0dHA6Ly93d3cuc2VyaWYuY29tLyIgc3R5bGU9ImZpbGwtcnVsZTpldmVub2RkO2NsaXAtcnVsZTpldmVub2RkO3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2UtbWl0ZXJsaW1pdDoyOyI+PHJlY3QgaWQ9IkFydGJvYXJkMSIgeD0iMCIgeT0iMCIgd2lkdGg9IjQyNjYuNjY3IiBoZWlnaHQ9IjQyNjYuNjY3IiBzdHlsZT0iZmlsbDpub25lOyIvPjxjbGlwUGF0aCBpZD0iX2NsaXAxIj48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iNDI2Ni42NjciIGhlaWdodD0iNDI2Ni42NjciLz48L2NsaXBQYXRoPjxnIGNsaXAtcGF0aD0idXJsKCNfY2xpcDEpIj48cGF0aCBkPSJNNDI2Ni42NjcsMTExNi42NjdsMCwyMDMzLjMzM2MwLDYxNi4zMDUgLTUwMC4zNjIsMTExNi42NjcgLTExMTYuNjY3LDExMTYuNjY3bC0yMDMzLjMzMywwYy02MTYuMzA1LDAgLTExMTYuNjY3LC01MDAuMzYyIC0xMTE2LjY2NywtMTExNi42NjdsLTAsLTIwMzMuMzMzYzAsLTYxNi4zMDUgNTAwLjM2MiwtMTExNi42NjcgMTExNi42NjcsLTExMTYuNjY3bDIwMzMuMzMzLDBjNjE2LjMwNSwwIDExMTYuNjY3LDUwMC4zNjIgMTExNi42NjcsMTExNi42NjdaIiBzdHlsZT0iZmlsbDojMDg2NWZlOyIvPjxwYXRoIGlkPSJCdWJibGUiIGQ9Ik0xMDgyLjMwMiwzMjcyLjE1OGMtMzA2Ljc0OSwtMjgzLjI3MyAtNDk4Ljk2OSwtNjg4Ljc3OCAtNDk4Ljk2OSwtMTEzOC44MjRjMCwtODU1LjQ2OCA2OTQuNTMyLC0xNTUwIDE1NTAsLTE1NTBjODU1LjQ2OCwwIDE1NTAsNjk0LjUzMiAxNTUwLDE1NTBjMCw4NTUuNDY4IC02OTQuNTMyLDE1NTAgLTE1NTAsMTU1MGMtMTY5LjI0OSwwIC0zMzIuMTk4LC0yNy4xODUgLTQ4NC43MTYsLTc3LjQyNGMtMTYuMTA5LDAuMzk2IC0zMi4wOTEsMy45NyAtNDYuOTM0LDEwLjc5NGwtMzA3LjY3NSwxMzkuMjczYy0xNS43NjcsNy4xNDIgLTMyLjgxMiwxMC44MzEgLTUwLjA0NSwxMC44MzFjLTY2LjU5NCwwIC0xMjEuOTA3LC01NS4wOSAtMTIzLjk0MiwtMTIzLjQ0NGwtOC41MjUsLTI4My4zMjFjLTAuNjg4LC0zMS4wNzIgLTkuNTk3LC02NC42IC0yOS4xOTMsLTg3Ljg4NVptMTA0NC42MTQsLTIzOTIuNzc2Yy02OTUuNjY3LC0wIC0xMjQzLjkwMyw1NjYuNTI4IC0xMjQ3LjUxNCwxMjQ0LjE0Yy0xLjc5NCwzMzQuOTQ5IDExMi40NjgsNjQzLjE2MiAzMjUuODU4LDg2OC45NTRjOTIuMzU4LDAuNzU0IDI0Mi4yOTEsLTEuOTMzIDM1NS4yMzEsLTEuOTk0YzE3Ljc3MywwLjExNiAzNC44NTcsLTYuODcgNDcuNDU3LC0xOS40MDZjMTIuNiwtMTIuNTM2IDE5LjY3MSwtMjkuNTg1IDE5LjY0NSwtNDcuMzU5Yy0wLjU5NiwtMjI2LjUxNyAtMy44NSwtNTEyLjYxIC00LjM0MywtNzgzLjk2MWMtMC4wMjIsLTE3LjcwNyA3LjAwMSwtMzQuNjk2IDE5LjUyLC00Ny4yMThjMTIuNTE5LC0xMi41MjMgMjkuNTA2LC0xOS41NSA0Ny4yMTMsLTE5LjUzM2MyOTQuNTI5LDAuNzY0IDg2OC43NTcsNS44NzIgMTE3NC4xNTksOC4xNDNjMjMuNTY2LDAuMTcxIDQ1LjI5MSwxMi43NzEgNTcuMTQxLDMzLjE0MmM4Ni44MDQsMTQ4LjYyMSAxODkuNDIzLDMxMy41NjIgMjgwLjY3LDQ2MS42MjFjMTMuMTY1LDIxLjY1OSAzNy41NTIsMzMuODg4IDYyLjc4NCwzMS40ODNjMjUuMjMyLC0yLjQwNSA0Ni44NywtMTkuMDIxIDU1LjcwNiwtNDIuNzc4YzQ2LjgwMywtMTMxLjY0NCA2Ni44NDIsLTI3MS4wNzUgNjYuODQyLC00MjQuODY2YzAsLTY5NS42NjcgLTU2NC43MDEsLTEyNjAuMzY4IC0xMjYwLjM2OCwtMTI2MC4zNjhaIiBzdHlsZT0iZmlsbDojZmZmOyIvPjwvZz48L3N2Zz4=") !important;
   background-position: center !important;
   background-size: 120px 120px !important;
