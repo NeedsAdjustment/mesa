@@ -12,7 +12,7 @@ console.info('Mesa frontend initialized')
 // Show the actual app version from tauri.conf.json
 getVersion().then((v) => {
   const el = document.getElementById('app-version')
-  if (el) el.textContent = `mesa v${v}`
+  if (el) el.textContent = `Mesa v${v}`
 })
 
 const appWindow = getCurrentWindow()
@@ -289,7 +289,7 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
 
 function applyGlobalThemeUi(enabled: boolean) {
   document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-    if (btn.textContent?.trim() === 'Global Theme') {
+    if (btn.textContent?.trim() === 'Normalised Chat Themes') {
       btn.classList.toggle('checked', enabled)
     }
   })
@@ -304,7 +304,7 @@ function setGlobalTheme(enabled: boolean) {
 invoke<boolean>('get_global_theme').then(applyGlobalThemeUi)
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-  if (btn.textContent?.trim() === 'Global Theme') {
+  if (btn.textContent?.trim() === 'Normalised Chat Themes') {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
       setGlobalTheme(!btn.classList.contains('checked'))
