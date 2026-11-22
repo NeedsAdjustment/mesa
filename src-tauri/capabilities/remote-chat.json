@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "remote-chat",
+  "description": "Lets the Messenger page report live sidebar state, so the durable copy survives Messenger clearing its own origin storage.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://*.facebook.com/*"]
+  },
+  "permissions": ["allow-set-sidebar-state"]
+}

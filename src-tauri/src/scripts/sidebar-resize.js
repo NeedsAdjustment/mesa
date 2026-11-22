@@ -49,6 +49,7 @@
     try {
       localStorage.setItem(COLLAPSED_KEY, String(collapsed))
     } catch (_) {}
+    pushState(getSavedWidth(), collapsed)
   }
 
   function getSavedWidth() {
@@ -68,6 +69,20 @@
 
   function saveWidth(w) {
     localStorage.setItem(WIDTH_KEY, String(Math.round(w)))
+    pushState(Math.round(w), isCollapsed())
+  }
+
+  // The app-side store must track the live state: Messenger clears its own
+  // origin's storage on boot, so that store is the only copy that survives.
+  function pushState(width, collapsed) {
+    try {
+      if (window.__TAURI_INTERNALS__) {
+        window.__TAURI_INTERNALS__.invoke('set_sidebar_state', {
+          width: width,
+          collapsed: collapsed,
+        })
+      }
+    } catch (_) {}
   }
 
   function getMaxWidth() {
@@ -329,8 +344,8 @@
     updateHandle()
   }
 
-  // Called from Rust after page load so the durable app-level settings win
-  // over any stale injected/localStorage values.
+  // Called from Rust after page load; the chat's own storage stays
+  // authoritative, and this fills the values a logout cleared.
   window.__mesaApplySidebarState = applySidebarState
 
   function isOverlayOpen() {

@@ -64,6 +64,11 @@ pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
 /// plus the stored width, as `[collapsed ? 1 : 0, width | null]`.
 pub(crate) const SIDEBAR_STATE_SCRIPT: &str = "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsedKey = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsedKey === null) return null; const collapsed = document.documentElement.classList.contains('sidebar-collapsed'); return [collapsed ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()";
 
+/// Reads the sidebar state out of the chat's localStorage rather than the DOM
+/// class: at page load the sidebar script has only just installed, so the
+/// class may not reflect the restored state yet.
+pub(crate) const SIDEBAR_STORAGE_SCRIPT: &str = "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsed = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsed === null) return null; return [collapsed === 'true' ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()";
+
 // ---- Shared helpers ----
 
 pub fn apply_theme_script(theme: &str) -> String {
@@ -157,6 +162,7 @@ pub fn run() {
             commands::set_global_theme,
             commands::get_global_theme,
             commands::set_window_narrow,
+            commands::set_sidebar_state,
             commands::get_auto_updates,
             commands::set_auto_updates,
             commands::get_tray_mode,

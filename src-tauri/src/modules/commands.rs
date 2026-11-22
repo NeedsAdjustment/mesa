@@ -256,6 +256,15 @@ pub fn set_tray_mode(app: tauri::AppHandle, enabled: bool) {
     crate::tray::apply_tray_mode(&app, enabled);
 }
 
+/// Called from the chat page so the durable copy tracks the live sidebar
+/// state; Messenger clears its own origin storage, which would otherwise
+/// leave the app restoring a stale snapshot.
+#[tauri::command]
+pub fn set_sidebar_state(app: tauri::AppHandle, width: Option<u32>, collapsed: bool) {
+    app.state::<crate::settings::SettingsStore>()
+        .update_sidebar(width, collapsed);
+}
+
 #[tauri::command]
 pub fn set_window_narrow(window: tauri::Window, narrow: bool) {
     WINDOW_NARROW.store(narrow, Ordering::Relaxed);

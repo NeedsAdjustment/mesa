@@ -306,6 +306,18 @@ pub fn create_chat(
                     ));
                 }
 
+                // Re-sync the durable copy from the live chat storage; the
+                // logout-time write alone goes stale.
+                let sync_app = sidebar_app_handle.clone();
+                let _ = window.eval_with_callback(crate::SIDEBAR_STORAGE_SCRIPT, move |result| {
+                    eprintln!("[mesa] SIDEBAR SYNC raw: {result}");
+                    if let Some((width, collapsed)) = crate::parse_sidebar_state(result.trim()) {
+                        let changed =
+                            sync_app.state::<SettingsStore>().update_sidebar(width, collapsed);
+                        eprintln!("[mesa] SIDEBAR SYNC: {width:?} collapsed={collapsed} changed={changed}");
+                    }
+                });
+
                 // Track whether we're on a login page
                 let is_logged_out = url_str == "about:blank" || url_str.contains("/login");
                 IS_LOGGED_OUT.store(is_logged_out, Ordering::Relaxed);
