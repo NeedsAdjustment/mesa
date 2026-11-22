@@ -6,6 +6,8 @@ edition = "2024"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# `unstable` gates WindowBuilder and child webviews, which the whole
+# titlebar + chat layout is built on.
 tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
