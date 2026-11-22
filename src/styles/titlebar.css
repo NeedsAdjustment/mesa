@@ -96,6 +96,10 @@
   cursor: default;
 }
 
+.menu-entry.accent {
+  color: var(--facebook-blue);
+}
+
 .menu-entry.hidden {
   display: none;
 }
@@ -333,17 +337,27 @@
 }
 
 .update-pill.ready {
-  color: var(--facebook-blue);
-  border-color: rgba(8, 102, 255, 0.45);
+  background: var(--facebook-blue);
+  border-color: var(--facebook-blue);
+  color: #fff;
   cursor: pointer;
 }
 
 .update-pill.ready:hover {
-  background: rgba(8, 102, 255, 0.12);
+  background: #2a7bff;
 }
 
 .update-pill.ready:active {
-  background: rgba(8, 102, 255, 0.2);
+  background: #0658d6;
+}
+
+.update-pill.downloading {
+  background: rgba(8, 102, 255, 0.16);
+  border-color: rgba(8, 102, 255, 0.4);
+}
+
+.update-pill.installing {
+  opacity: 0.6;
 }
 
 @media (max-width: 399px) {
