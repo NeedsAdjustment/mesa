@@ -6,6 +6,7 @@ use tauri_plugin_global_shortcut::ShortcutState;
 
 mod modules;
 pub use modules::accent;
+pub use modules::backdrop;
 pub use modules::commands;
 pub use modules::navigation;
 pub use modules::settings;

@@ -357,6 +357,7 @@ pub fn setup_resize_handler(
     window_for_event.on_window_event(move |event| {
         if let WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } = event {
             apply_layout(&window_for_layout, &titlebar, &chat);
+            crate::backdrop::sync_size(&window_for_layout);
         }
     });
 }

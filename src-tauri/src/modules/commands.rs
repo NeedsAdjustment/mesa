@@ -4,8 +4,6 @@ use tauri::Url;
 #[cfg(target_os = "macos")]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 use tauri_plugin_opener::open_path;
-#[cfg(target_os = "windows")]
-use window_vibrancy::apply_acrylic;
 
 use crate::{
     BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, GLOBAL_THEME_ENABLED, INITIAL_WIDTH,
@@ -173,8 +171,11 @@ pub(crate) fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
                 .build(),
         ));
         #[cfg(target_os = "windows")]
-        let _ = apply_acrylic(window, acrylic_tint());
+        crate::backdrop::apply(window, true, acrylic_tint());
     } else {
+        #[cfg(target_os = "windows")]
+        crate::backdrop::apply(window, false, None);
+        #[cfg(not(target_os = "windows"))]
         let _ = window.set_effects(None);
     }
 }
