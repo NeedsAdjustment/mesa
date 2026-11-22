@@ -177,13 +177,14 @@ pub fn run() {
                 spawn_accent_warmup(app.handle().clone());
             }
 
-            // The tray icon exists for the whole session; it is only visible
-            // while tray mode is on.
-            tray::create_tray(app.handle(), tray_mode)?;
-
             // In tray mode the app starts as just a tray icon; the panel is
             // shown (and docked) on the first tray click.
             let window = window::create_window(app, tray_mode)?;
+
+            // The tray icon exists for the whole session; it is only visible
+            // while tray mode is on. Built after the window so the glyph can
+            // follow the system theme.
+            tray::create_tray(app.handle(), tray_mode)?;
 
             let chat = window::create_chat(&window, &sidebar, global_theme)?;
             let titlebar = window::create_titlebar(&window)?;

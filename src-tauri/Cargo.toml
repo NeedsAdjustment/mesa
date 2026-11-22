@@ -7,8 +7,8 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # `unstable` gates WindowBuilder and child webviews, which the whole
-# titlebar + chat layout is built on.
-tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
+# titlebar + chat layout is built on. `image-png` decodes the tray glyphs.
+tauri = { version = "2", features = ["unstable", "devtools", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-window-state = "2"

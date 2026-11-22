@@ -17,6 +17,17 @@
   align-items: center;
 }
 
+/* the single-colour Mesa mark; follows the theme's icon colour */
+.app-mark {
+  width: 16px;
+  height: 16px;
+  margin: 0 4px 0 10px;
+}
+
+.app-mark path {
+  fill: var(--titlebar-icon-color);
+}
+
 .menu {
   position: relative;
   height: 100%;

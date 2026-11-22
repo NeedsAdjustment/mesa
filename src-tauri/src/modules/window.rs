@@ -359,12 +359,17 @@ pub fn setup_resize_handler(
     let window_for_layout = window.clone();
     let titlebar = titlebar.clone();
     let chat = chat.clone();
+    let app_for_theme = window.app_handle().clone();
 
-    window_for_event.on_window_event(move |event| {
-        if let WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } = event {
+    window_for_event.on_window_event(move |event| match event {
+        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
             apply_layout(&window_for_layout, &titlebar, &chat);
             crate::backdrop::sync_size(&window_for_layout);
         }
+        WindowEvent::ThemeChanged(theme) => {
+            crate::tray::set_tray_theme(&app_for_theme, *theme);
+        }
+        _ => {}
     });
 }
 

@@ -116,6 +116,23 @@ pub fn docked_position(tray: ScreenRect, work_area: ScreenRect, panel: ScreenRec
     ScreenRect::new(x, y, width, height)
 }
 
+/// The tray glyph follows the taskbar's theme: white on dark, black on light.
+fn tray_icon(theme: tauri::Theme) -> tauri::image::Image<'static> {
+    let bytes: &'static [u8] = match theme {
+        tauri::Theme::Dark => include_bytes!("../../icons/tray-white.png"),
+        _ => include_bytes!("../../icons/tray-black.png"),
+    };
+    tauri::image::Image::from_bytes(bytes).expect("embedded tray icon should be valid")
+}
+
+/// Re-point the tray glyph when the system theme changes.
+pub fn set_tray_theme(app: &AppHandle, theme: tauri::Theme) {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+    let _ = tray.set_icon(Some(tray_icon(theme)));
+}
+
 /// Build the tray icon. It is created hidden unless tray mode is active; its
 /// visibility is toggled by [`apply_tray_mode`].
 pub fn create_tray(app: &AppHandle, visible: bool) -> tauri::Result<()> {
@@ -151,9 +168,11 @@ pub fn create_tray(app: &AppHandle, visible: bool) -> tauri::Result<()> {
             }
         });
 
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
+    let theme = app
+        .get_window("main")
+        .and_then(|window| window.theme().ok())
+        .unwrap_or(tauri::Theme::Light);
+    builder = builder.icon(tray_icon(theme));
 
     let tray = builder.build(app)?;
     tray.set_visible(visible)
