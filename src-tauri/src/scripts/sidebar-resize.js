@@ -177,9 +177,7 @@
     sidebar = document.querySelector(SIDEBAR_SELECTOR)
     if (!sidebar) return
 
-    // Re-apply the saved width whenever the handle is re-created. Removing the
-    // handle clears the inline width, so without this the user's resize is lost
-    // after opening an overlay or collapsing/expanding the sidebar.
+    // Re-apply the saved width whenever the handle is re-created.
     applySavedWidth()
 
     handle = document.createElement('div')
@@ -206,7 +204,6 @@
     cleanupDrag()
     if (sidebar) {
       resizeObserver.unobserve(sidebar)
-      clearSidebarWidth()
     }
     if (handle) {
       window.removeEventListener('scroll', syncHandlePosition)
@@ -294,10 +291,13 @@
   }
 
   function updateHandle() {
-    if (
-      document.documentElement.classList.contains('narrow-window') ||
-      isOverlayOpen()
-    ) {
+    if (document.documentElement.classList.contains('narrow-window')) {
+      // The narrow layout is full-width, so the inline width has to go.
+      removeHandle()
+      clearSidebarWidth()
+    } else if (isOverlayOpen()) {
+      // Menus and overlays sit above the handle; drop the handle but keep
+      // the sidebar's width so nothing shifts around underneath.
       removeHandle()
     } else {
       createHandle()
