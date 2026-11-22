@@ -219,6 +219,7 @@ pub fn set_global_theme(window: tauri::Window, enabled: bool) {
         .map(|theme| theme.clone())
         .unwrap_or_else(|_| "dark".into());
     apply_theme_to_chat(&window, &theme);
+    crate::apply_accent_to_titlebar(&window.app_handle());
 
     if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
         apply_blur_effect(&window, true);

@@ -336,6 +336,13 @@ div[aria-label='Chats'][role='grid'] a[role='link'][aria-current='page'] {
   border-color: var(--primary-deemphasized-button-text) !important;
 }
 
+/* under the normalised theme the selected conversation follows the accent
+   instead of Facebook's blue deemphasized buttons */
+html.mesa-global-theme div[aria-label='Chats'][role='grid'] a[role='link'][aria-current='page'] {
+  background-color: color-mix(in srgb, var(--mesa-accent-base), transparent 86%) !important;
+  border-color: var(--mesa-accent) !important;
+}
+
 /* collapsed sidebar elements */
 .sidebar-collapsed div[aria-label='Thread list'][role='navigation']>div>div>*:not(:last-child),
 .sidebar-collapsed div[aria-label='Thread list'][role='navigation'] a[role='link']>div>div>*:not(:first-child),

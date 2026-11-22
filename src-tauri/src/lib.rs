@@ -88,6 +88,24 @@ pub fn apply_theme_to_chat(window: &tauri::Window, theme: &str) {
     }
 }
 
+/// Points the titlebar's `--facebook-blue` at the wallpaper accent while the
+/// normalised chat theme is on; otherwise the base.css default applies.
+pub fn apply_accent_to_titlebar(app: &tauri::AppHandle) {
+    let Some(titlebar) = app.get_webview("top_bar") else {
+        return;
+    };
+
+    let js = if GLOBAL_THEME_ENABLED.load(Ordering::Relaxed) {
+        let (r, g, b) = accent::accent_rgb();
+        format!(
+            "document.documentElement.style.setProperty('--facebook-blue', '#{r:02x}{g:02x}{b:02x}')"
+        )
+    } else {
+        "document.documentElement.style.removeProperty('--facebook-blue')".into()
+    };
+    let _ = titlebar.eval(js);
+}
+
 // ---- App entry point ----
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -209,6 +227,8 @@ pub fn spawn_accent_warmup(app: tauri::AppHandle) {
         // cache is warm.
         let app_for_apply = app.clone();
         let _ = app.run_on_main_thread(move || {
+            apply_accent_to_titlebar(&app_for_apply);
+
             let Some(window) = app_for_apply.get_window("main") else {
                 return;
             };

@@ -48,7 +48,13 @@ pub fn create_titlebar(
     window: &tauri::Window,
 ) -> Result<tauri::webview::Webview, Box<dyn std::error::Error>> {
     let titlebar = window.add_child(
-        WebviewBuilder::new("top_bar", WebviewUrl::App("index.html".into())).transparent(true),
+        WebviewBuilder::new("top_bar", WebviewUrl::App("index.html".into()))
+            .transparent(true)
+            .on_page_load(|webview, payload| {
+                if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                    crate::apply_accent_to_titlebar(&webview.app_handle());
+                }
+            }),
         LogicalPosition::new(0., 0.),
         LogicalSize::new(INITIAL_WIDTH, TITLEBAR_HEIGHT),
     )?;
