@@ -4,8 +4,6 @@ use tauri::Url;
 #[cfg(target_os = "macos")]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 use tauri_plugin_opener::open_path;
-#[cfg(target_os = "windows")]
-use window_vibrancy::apply_acrylic;
 
 use crate::{
     BACKDROP_BLUR_ENABLED, CURRENT_THEME, CURRENT_ZOOM, GLOBAL_THEME_ENABLED, INITIAL_WIDTH,
@@ -78,6 +76,19 @@ pub fn focus_chat(window: tauri::Window) {
 #[tauri::command]
 pub fn show_devtools(window: tauri::Window) {
     if let Some(chat) = window.get_webview("chat_window") {
+        // Devtools stay off so the context menu never offers Inspect; the
+        // user asked for them, so turn them back on first (for the rest of
+        // the session — there is no close event to hook a re-disable to).
+        let enabled = chat.with_webview(|webview| {
+            if let Ok(core) = unsafe { webview.controller().CoreWebView2() }
+                && let Ok(settings) = unsafe { core.Settings() }
+            {
+                let _ = unsafe { settings.SetAreDevToolsEnabled(true) };
+            }
+        });
+        if let Err(error) = enabled {
+            eprintln!("[mesa] failed to enable devtools: {error}");
+        }
         chat.open_devtools();
     }
 }
@@ -173,8 +184,11 @@ pub(crate) fn apply_blur_effect(window: &tauri::Window, enabled: bool) {
                 .build(),
         ));
         #[cfg(target_os = "windows")]
-        let _ = apply_acrylic(window, acrylic_tint());
+        crate::backdrop::apply(window, true, acrylic_tint());
     } else {
+        #[cfg(target_os = "windows")]
+        crate::backdrop::apply(window, false, None);
+        #[cfg(not(target_os = "windows"))]
         let _ = window.set_effects(None);
     }
 }
@@ -218,6 +232,7 @@ pub fn set_global_theme(window: tauri::Window, enabled: bool) {
         .map(|theme| theme.clone())
         .unwrap_or_else(|_| "dark".into());
     apply_theme_to_chat(&window, &theme);
+    crate::apply_accent_to_titlebar(&window.app_handle());
 
     if BACKDROP_BLUR_ENABLED.load(Ordering::Relaxed) {
         apply_blur_effect(&window, true);
@@ -252,6 +267,15 @@ pub fn set_tray_mode(app: tauri::AppHandle, enabled: bool) {
     app.state::<crate::settings::SettingsStore>()
         .update_tray_mode(enabled);
     crate::tray::apply_tray_mode(&app, enabled);
+}
+
+/// Called from the chat page so the durable copy tracks the live sidebar
+/// state; Messenger clears its own origin storage, which would otherwise
+/// leave the app restoring a stale snapshot.
+#[tauri::command]
+pub fn set_sidebar_state(app: tauri::AppHandle, width: Option<u32>, collapsed: bool) {
+    app.state::<crate::settings::SettingsStore>()
+        .update_sidebar(width, collapsed);
 }
 
 #[tauri::command]

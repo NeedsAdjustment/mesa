@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-set-sidebar-state"
+description = "Allows the Messenger page to report the live sidebar state."
+commands.allow = ["set_sidebar_state"]

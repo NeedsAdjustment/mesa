@@ -1,4 +1,5 @@
 pub mod accent;
+pub mod backdrop;
 pub mod commands;
 pub mod navigation;
 pub mod settings;

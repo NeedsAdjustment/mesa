@@ -6,6 +6,7 @@ use tauri_plugin_global_shortcut::ShortcutState;
 
 mod modules;
 pub use modules::accent;
+pub use modules::backdrop;
 pub use modules::commands;
 pub use modules::navigation;
 pub use modules::settings;
@@ -58,10 +59,16 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
 
 pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
 pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
+pub static CONTEXT_MENU_SCRIPT: &str = include_str!("scripts/context-menu.js");
 
 /// Reads the sidebar state out of the chat document: the live collapse class
 /// plus the stored width, as `[collapsed ? 1 : 0, width | null]`.
 pub(crate) const SIDEBAR_STATE_SCRIPT: &str = "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsedKey = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsedKey === null) return null; const collapsed = document.documentElement.classList.contains('sidebar-collapsed'); return [collapsed ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()";
+
+/// Reads the sidebar state out of the chat's localStorage rather than the DOM
+/// class: at page load the sidebar script has only just installed, so the
+/// class may not reflect the restored state yet.
+pub(crate) const SIDEBAR_STORAGE_SCRIPT: &str = "(() => { try { const width = localStorage.getItem('mesa:sidebar-width'); const collapsed = localStorage.getItem('mesa:sidebar-collapsed'); if (width === null && collapsed === null) return null; return [collapsed === 'true' ? 1 : 0, width ? Number(width) : null] } catch (_) { return null } })()";
 
 // ---- Shared helpers ----
 
@@ -85,6 +92,24 @@ pub fn apply_theme_to_chat(window: &tauri::Window, theme: &str) {
     if let Some(chat) = window.get_webview("chat_window") {
         let _ = chat.eval(apply_theme_script(theme));
     }
+}
+
+/// Points the titlebar's `--facebook-blue` at the wallpaper accent while the
+/// normalised chat theme is on; otherwise the base.css default applies.
+pub fn apply_accent_to_titlebar(app: &tauri::AppHandle) {
+    let Some(titlebar) = app.get_webview("top_bar") else {
+        return;
+    };
+
+    let js = if GLOBAL_THEME_ENABLED.load(Ordering::Relaxed) {
+        let (r, g, b) = accent::accent_rgb();
+        format!(
+            "document.documentElement.style.setProperty('--facebook-blue', '#{r:02x}{g:02x}{b:02x}')"
+        )
+    } else {
+        "document.documentElement.style.removeProperty('--facebook-blue')".into()
+    };
+    let _ = titlebar.eval(js);
 }
 
 // ---- App entry point ----
@@ -138,6 +163,7 @@ pub fn run() {
             commands::set_global_theme,
             commands::get_global_theme,
             commands::set_window_narrow,
+            commands::set_sidebar_state,
             commands::get_auto_updates,
             commands::set_auto_updates,
             commands::get_tray_mode,
@@ -158,15 +184,17 @@ pub fn run() {
                 spawn_accent_warmup(app.handle().clone());
             }
 
-            // The tray icon exists for the whole session; it is only visible
-            // while tray mode is on.
-            tray::create_tray(app.handle(), tray_mode)?;
-
             // In tray mode the app starts as just a tray icon; the panel is
             // shown (and docked) on the first tray click.
             let window = window::create_window(app, tray_mode)?;
 
+            // The tray icon exists for the whole session; it is only visible
+            // while tray mode is on. Built after the window so the glyph can
+            // follow the system theme.
+            tray::create_tray(app.handle(), tray_mode)?;
+
             let chat = window::create_chat(&window, &sidebar, global_theme)?;
+            window::disable_chat_devtools(&chat);
             let titlebar = window::create_titlebar(&window)?;
 
             window::apply_layout(&window, &titlebar, &chat);
@@ -208,6 +236,8 @@ pub fn spawn_accent_warmup(app: tauri::AppHandle) {
         // cache is warm.
         let app_for_apply = app.clone();
         let _ = app.run_on_main_thread(move || {
+            apply_accent_to_titlebar(&app_for_apply);
+
             let Some(window) = app_for_apply.get_window("main") else {
                 return;
             };

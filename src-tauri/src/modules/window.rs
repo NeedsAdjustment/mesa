@@ -44,11 +44,33 @@ pub fn create_window(
     Ok(window)
 }
 
+/// WebView2 only puts the Inspect entry in its context menus while devtools
+/// are enabled for the webview. They stay off; the Show DevTools menu item
+/// re-enables them on demand.
+pub fn disable_chat_devtools(chat: &tauri::webview::Webview) {
+    let disabled = chat.with_webview(|webview| {
+        if let Ok(core) = unsafe { webview.controller().CoreWebView2() }
+            && let Ok(settings) = unsafe { core.Settings() }
+        {
+            let _ = unsafe { settings.SetAreDevToolsEnabled(false) };
+        }
+    });
+    if let Err(error) = disabled {
+        eprintln!("[mesa] failed to disable devtools: {error}");
+    }
+}
+
 pub fn create_titlebar(
     window: &tauri::Window,
 ) -> Result<tauri::webview::Webview, Box<dyn std::error::Error>> {
     let titlebar = window.add_child(
-        WebviewBuilder::new("top_bar", WebviewUrl::App("index.html".into())).transparent(true),
+        WebviewBuilder::new("top_bar", WebviewUrl::App("index.html".into()))
+            .transparent(true)
+            .on_page_load(|webview, payload| {
+                if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                    crate::apply_accent_to_titlebar(&webview.app_handle());
+                }
+            }),
         LogicalPosition::new(0., 0.),
         LogicalSize::new(INITIAL_WIDTH, TITLEBAR_HEIGHT),
     )?;
@@ -101,6 +123,7 @@ pub fn create_chat(
         // unstyled. The script itself is a no-op outside Messenger.
         .initialization_script(INJECT_SCRIPT.as_str())
         .initialization_script(SIDEBAR_RESIZE_SCRIPT)
+        .initialization_script(crate::CONTEXT_MENU_SCRIPT)
         .on_download(move |_webview, event| {
             match event {
                 tauri::webview::DownloadEvent::Requested { url, destination } => {
@@ -288,6 +311,7 @@ pub fn create_chat(
                     eprintln!("[mesa] CHAT CSS FALLBACK: {url_str}");
                     let _ = window.eval(INJECT_SCRIPT.as_str());
                     let _ = window.eval(SIDEBAR_RESIZE_SCRIPT);
+                    let _ = window.eval(crate::CONTEXT_MENU_SCRIPT);
                 }
 
                 // The durable copy lives outside the webview profile, so it
@@ -299,6 +323,15 @@ pub fn create_chat(
                         "window.__mesaApplySidebarState && window.__mesaApplySidebarState({json});"
                     ));
                 }
+
+                // Re-sync the durable copy from the live chat storage; the
+                // logout-time write alone goes stale.
+                let sync_app = sidebar_app_handle.clone();
+                let _ = window.eval_with_callback(crate::SIDEBAR_STORAGE_SCRIPT, move |result| {
+                    if let Some((width, collapsed)) = crate::parse_sidebar_state(result.trim()) {
+                        sync_app.state::<SettingsStore>().update_sidebar(width, collapsed);
+                    }
+                });
 
                 // Track whether we're on a login page
                 let is_logged_out = url_str == "about:blank" || url_str.contains("/login");
@@ -353,11 +386,17 @@ pub fn setup_resize_handler(
     let window_for_layout = window.clone();
     let titlebar = titlebar.clone();
     let chat = chat.clone();
+    let app_for_theme = window.app_handle().clone();
 
-    window_for_event.on_window_event(move |event| {
-        if let WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } = event {
+    window_for_event.on_window_event(move |event| match event {
+        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
             apply_layout(&window_for_layout, &titlebar, &chat);
+            crate::backdrop::sync_size(&window_for_layout);
         }
+        WindowEvent::ThemeChanged(theme) => {
+            crate::tray::set_tray_theme(&app_for_theme, *theme);
+        }
+        _ => {}
     });
 }
 

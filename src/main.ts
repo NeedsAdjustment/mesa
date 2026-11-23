@@ -86,6 +86,9 @@ window.addEventListener('blur', () => {
   closeMenusAndFocusChat()
 })
 
+// The titlebar offers no right-click actions; suppress the default menu.
+window.addEventListener('contextmenu', (e) => e.preventDefault())
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeMenusAndFocusChat()
@@ -162,8 +165,27 @@ function setControlsHidden(hidden: boolean) {
   document.querySelector('.titlebar')?.classList.toggle('controls-hidden', hidden)
 }
 
+// ---- Autohide Menu toggle ----
+
+const AUTOHIDE_KEY = 'mesa:autohide-menu'
+
+function getAutohideMenu(): boolean {
+  return localStorage.getItem(AUTOHIDE_KEY) === 'true'
+}
+
+function setAutohideMenu(enabled: boolean) {
+  localStorage.setItem(AUTOHIDE_KEY, String(enabled))
+  document.documentElement.classList.toggle('autohide-menu', enabled)
+  document.querySelectorAll('.menu-entry').forEach((btn) => {
+    if (btn.textContent?.trim() === 'Autohide Menu') {
+      btn.classList.toggle('checked', enabled)
+    }
+  })
+}
+
 // Initialize from saved state
 setControlsHidden(getControlsHidden())
+setAutohideMenu(getAutohideMenu())
 
 // Find and wire up the Hide Window Controls button
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
@@ -175,6 +197,18 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
       const hidden = !getControlsHidden()
       setControlsHidden(hidden)
       btn.classList.toggle('checked', hidden)
+      closeMenusAndFocusChat()
+    })
+  }
+})
+
+// Find and wire up the Autohide Menu button
+document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
+  if (btn.textContent?.trim() === 'Autohide Menu' && btn.closest('.menu')?.querySelector('.menu-trigger')?.textContent === 'View') {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const enabled = !getAutohideMenu()
+      setAutohideMenu(enabled)
       closeMenusAndFocusChat()
     })
   }
@@ -289,7 +323,7 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
 
 function applyGlobalThemeUi(enabled: boolean) {
   document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-    if (btn.textContent?.trim() === 'Normalised Chat Themes') {
+    if (btn.textContent?.trim() === 'Normalised Chat Theme') {
       btn.classList.toggle('checked', enabled)
     }
   })
@@ -304,7 +338,7 @@ function setGlobalTheme(enabled: boolean) {
 invoke<boolean>('get_global_theme').then(applyGlobalThemeUi)
 
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
-  if (btn.textContent?.trim() === 'Normalised Chat Themes') {
+  if (btn.textContent?.trim() === 'Normalised Chat Theme') {
     btn.addEventListener('click', (e) => {
       e.stopPropagation()
       setGlobalTheme(!btn.classList.contains('checked'))
@@ -408,9 +442,9 @@ let checkUpdatesTimer: number | null = null
 let autoCheckTimeout: number | null = null
 let autoCheckInterval: number | null = null
 
-// Non-actionable states render dimmed and inert in the single File-menu
-// entry; `revertMs` restores the actionable label.
-function setCheckUpdatesLabel(text: string, revertMs = 0) {
+// The entry narrates the update flow in place and becomes the install
+// trigger once the download lands; `revertMs` restores the idle label.
+function setCheckUpdatesLabel(text: string, dimmed = true, revertMs = 0) {
   if (!checkUpdatesBtn) return
 
   if (checkUpdatesTimer !== null) {
@@ -419,9 +453,9 @@ function setCheckUpdatesLabel(text: string, revertMs = 0) {
   }
 
   checkUpdatesBtn.textContent = text
-  const actionable = text === CHECK_UPDATES_LABEL
-  checkUpdatesBtn.classList.toggle('dim', !actionable)
-  checkUpdatesBtn.disabled = !actionable
+  checkUpdatesBtn.classList.toggle('dim', dimmed)
+  checkUpdatesBtn.classList.toggle('accent', !dimmed && text !== CHECK_UPDATES_LABEL)
+  checkUpdatesBtn.disabled = dimmed
 
   if (revertMs > 0) {
     checkUpdatesTimer = window.setTimeout(() => {
@@ -432,14 +466,16 @@ function setCheckUpdatesLabel(text: string, revertMs = 0) {
 }
 
 function resetCheckUpdatesLabel() {
-  setCheckUpdatesLabel(CHECK_UPDATES_LABEL)
+  setCheckUpdatesLabel(CHECK_UPDATES_LABEL, false)
 }
 
 function showUpdatePill(state: 'downloading' | 'ready' | 'installing', version: string, detail = '') {
   if (!updatePillEl) return
 
   updatePillEl.classList.remove('hidden')
-  updatePillEl.classList.toggle('ready', state !== 'downloading')
+  updatePillEl.classList.toggle('downloading', state === 'downloading')
+  updatePillEl.classList.toggle('ready', state === 'ready')
+  updatePillEl.classList.toggle('installing', state === 'installing')
 
   if (updatePillIconEl) {
     updatePillIconEl.className =
@@ -483,12 +519,14 @@ function downloadPendingUpdate() {
         case 'Finished':
           pendingUpdateDownloaded = true
           showUpdatePill('ready', update.version)
+          setCheckUpdatesLabel(`Install Mesa v${update.version}`, false)
           break
       }
     })
     .then(() => {
       pendingUpdateDownloaded = true
       showUpdatePill('ready', update.version)
+      setCheckUpdatesLabel(`Install Mesa v${update.version}`, false)
     })
     .catch((error) => {
       console.error('failed to download update', error)
@@ -497,19 +535,13 @@ function downloadPendingUpdate() {
       pendingUpdate = null
       pendingUpdateDownloaded = false
       hideUpdatePill()
+      resetCheckUpdatesLabel()
     })
 }
 
 async function runUpdateCheck(manual: boolean) {
-  if (pendingUpdate) {
-    if (manual) {
-      setCheckUpdatesLabel(
-        pendingUpdateDownloaded
-          ? `Mesa v${pendingUpdate.version} is ready to install`
-          : `Downloading Mesa v${pendingUpdate.version}…`,
-        4000,
-      )
-    }
+  // The entry and pill already narrate progress or offer the install.
+  if (updateInstalling || pendingUpdate) {
     return
   }
 
@@ -523,19 +555,18 @@ async function runUpdateCheck(manual: boolean) {
     const update = await check()
 
     if (!update) {
-      if (manual) setCheckUpdatesLabel('Mesa is up to date', 4000)
+      if (manual) setCheckUpdatesLabel('Mesa is up to date', true, 4000)
       return
     }
 
     pendingUpdate = update
     pendingUpdateDownloaded = false
     showUpdatePill('downloading', update.version)
+    setCheckUpdatesLabel(`Downloading Mesa v${update.version}…`)
     downloadPendingUpdate()
-
-    if (manual) resetCheckUpdatesLabel()
   } catch (error) {
     console.error('failed to check for updates', error)
-    if (manual) setCheckUpdatesLabel('Update check failed', 4000)
+    if (manual) setCheckUpdatesLabel('Update check failed', true, 4000)
   } finally {
     manualCheckRunning = false
   }
@@ -547,6 +578,7 @@ async function installPendingUpdate() {
 
   updateInstalling = true
   showUpdatePill('installing', update.version)
+  setCheckUpdatesLabel('Installing…')
 
   try {
     // On Windows the installer runs passively, restarts the app itself and
@@ -557,6 +589,7 @@ async function installPendingUpdate() {
     console.error('failed to install update', error)
     updateInstalling = false
     showUpdatePill('ready', update.version)
+    setCheckUpdatesLabel(`Install Mesa v${update.version}`, false)
   }
 }
 
@@ -598,6 +631,12 @@ autoUpdatesBtn?.addEventListener('click', (e) => {
 
 checkUpdatesBtn?.addEventListener('click', (e) => {
   e.stopPropagation()
+  if (updateInstalling) return
+  // Once the download lands, the entry itself is the install trigger.
+  if (pendingUpdate && pendingUpdateDownloaded) {
+    void installPendingUpdate()
+    return
+  }
   void runUpdateCheck(true)
 })
 
