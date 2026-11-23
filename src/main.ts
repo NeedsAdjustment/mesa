@@ -165,8 +165,27 @@ function setControlsHidden(hidden: boolean) {
   document.querySelector('.titlebar')?.classList.toggle('controls-hidden', hidden)
 }
 
+// ---- Autohide Menu toggle ----
+
+const AUTOHIDE_KEY = 'mesa:autohide-menu'
+
+function getAutohideMenu(): boolean {
+  return localStorage.getItem(AUTOHIDE_KEY) === 'true'
+}
+
+function setAutohideMenu(enabled: boolean) {
+  localStorage.setItem(AUTOHIDE_KEY, String(enabled))
+  document.documentElement.classList.toggle('autohide-menu', enabled)
+  document.querySelectorAll('.menu-entry').forEach((btn) => {
+    if (btn.textContent?.trim() === 'Autohide Menu') {
+      btn.classList.toggle('checked', enabled)
+    }
+  })
+}
+
 // Initialize from saved state
 setControlsHidden(getControlsHidden())
+setAutohideMenu(getAutohideMenu())
 
 // Find and wire up the Hide Window Controls button
 document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
@@ -178,6 +197,18 @@ document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
       const hidden = !getControlsHidden()
       setControlsHidden(hidden)
       btn.classList.toggle('checked', hidden)
+      closeMenusAndFocusChat()
+    })
+  }
+})
+
+// Find and wire up the Autohide Menu button
+document.querySelectorAll<HTMLButtonElement>('.menu-entry').forEach((btn) => {
+  if (btn.textContent?.trim() === 'Autohide Menu' && btn.closest('.menu')?.querySelector('.menu-trigger')?.textContent === 'View') {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const enabled = !getAutohideMenu()
+      setAutohideMenu(enabled)
       closeMenusAndFocusChat()
     })
   }
