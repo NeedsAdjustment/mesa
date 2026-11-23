@@ -20,6 +20,7 @@ window-vibrancy = "0.7.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 jpeg-decoder = "0.3"
+webview2-com = "0.39"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_Graphics_Direct2D", "Win32_Graphics_Direct2D_Common", "Win32_System_WinRT_Composition", "Win32_System_WinRT_Graphics_Direct2D", "UI_Composition_Desktop", "Graphics_Effects", "System"] }
 windows-core = "0.62"
 windows-numerics = { version = "0.3.1", default-features = false }

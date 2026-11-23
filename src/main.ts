@@ -86,6 +86,9 @@ window.addEventListener('blur', () => {
   closeMenusAndFocusChat()
 })
 
+// The titlebar offers no right-click actions; suppress the default menu.
+window.addEventListener('contextmenu', (e) => e.preventDefault())
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeMenusAndFocusChat()

@@ -59,6 +59,7 @@ pub static INJECT_SCRIPT: LazyLock<String> = LazyLock::new(|| {
 
 pub static SIDEBAR_RESIZE_SCRIPT: &str = include_str!("scripts/sidebar-resize.js");
 pub static NAV_HANDLER_SCRIPT: &str = include_str!("scripts/nav-handler.js");
+pub static CONTEXT_MENU_SCRIPT: &str = include_str!("scripts/context-menu.js");
 
 /// Reads the sidebar state out of the chat document: the live collapse class
 /// plus the stored width, as `[collapsed ? 1 : 0, width | null]`.
@@ -193,6 +194,7 @@ pub fn run() {
             tray::create_tray(app.handle(), tray_mode)?;
 
             let chat = window::create_chat(&window, &sidebar, global_theme)?;
+            window::disable_chat_devtools(&chat);
             let titlebar = window::create_titlebar(&window)?;
 
             window::apply_layout(&window, &titlebar, &chat);

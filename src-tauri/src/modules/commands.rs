@@ -76,6 +76,19 @@ pub fn focus_chat(window: tauri::Window) {
 #[tauri::command]
 pub fn show_devtools(window: tauri::Window) {
     if let Some(chat) = window.get_webview("chat_window") {
+        // Devtools stay off so the context menu never offers Inspect; the
+        // user asked for them, so turn them back on first (for the rest of
+        // the session — there is no close event to hook a re-disable to).
+        let enabled = chat.with_webview(|webview| {
+            if let Ok(core) = unsafe { webview.controller().CoreWebView2() }
+                && let Ok(settings) = unsafe { core.Settings() }
+            {
+                let _ = unsafe { settings.SetAreDevToolsEnabled(true) };
+            }
+        });
+        if let Err(error) = enabled {
+            eprintln!("[mesa] failed to enable devtools: {error}");
+        }
         chat.open_devtools();
     }
 }

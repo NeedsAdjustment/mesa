@@ -44,6 +44,22 @@ pub fn create_window(
     Ok(window)
 }
 
+/// WebView2 only puts the Inspect entry in its context menus while devtools
+/// are enabled for the webview. They stay off; the Show DevTools menu item
+/// re-enables them on demand.
+pub fn disable_chat_devtools(chat: &tauri::webview::Webview) {
+    let disabled = chat.with_webview(|webview| {
+        if let Ok(core) = unsafe { webview.controller().CoreWebView2() }
+            && let Ok(settings) = unsafe { core.Settings() }
+        {
+            let _ = unsafe { settings.SetAreDevToolsEnabled(false) };
+        }
+    });
+    if let Err(error) = disabled {
+        eprintln!("[mesa] failed to disable devtools: {error}");
+    }
+}
+
 pub fn create_titlebar(
     window: &tauri::Window,
 ) -> Result<tauri::webview::Webview, Box<dyn std::error::Error>> {
@@ -107,6 +123,7 @@ pub fn create_chat(
         // unstyled. The script itself is a no-op outside Messenger.
         .initialization_script(INJECT_SCRIPT.as_str())
         .initialization_script(SIDEBAR_RESIZE_SCRIPT)
+        .initialization_script(crate::CONTEXT_MENU_SCRIPT)
         .on_download(move |_webview, event| {
             match event {
                 tauri::webview::DownloadEvent::Requested { url, destination } => {
@@ -294,6 +311,7 @@ pub fn create_chat(
                     eprintln!("[mesa] CHAT CSS FALLBACK: {url_str}");
                     let _ = window.eval(INJECT_SCRIPT.as_str());
                     let _ = window.eval(SIDEBAR_RESIZE_SCRIPT);
+                    let _ = window.eval(crate::CONTEXT_MENU_SCRIPT);
                 }
 
                 // The durable copy lives outside the webview profile, so it
@@ -310,11 +328,8 @@ pub fn create_chat(
                 // logout-time write alone goes stale.
                 let sync_app = sidebar_app_handle.clone();
                 let _ = window.eval_with_callback(crate::SIDEBAR_STORAGE_SCRIPT, move |result| {
-                    eprintln!("[mesa] SIDEBAR SYNC raw: {result}");
                     if let Some((width, collapsed)) = crate::parse_sidebar_state(result.trim()) {
-                        let changed =
-                            sync_app.state::<SettingsStore>().update_sidebar(width, collapsed);
-                        eprintln!("[mesa] SIDEBAR SYNC: {width:?} collapsed={collapsed} changed={changed}");
+                        sync_app.state::<SettingsStore>().update_sidebar(width, collapsed);
                     }
                 });
 

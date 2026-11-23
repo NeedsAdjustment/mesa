@@ -54,6 +54,11 @@ enum Backdrop {
 
 static ACTIVE: LazyLock<Mutex<Option<Backdrop>>> = LazyLock::new(|| Mutex::new(None));
 
+/// The thread that built the composition objects; they are apartment-bound
+/// to it, so every later call must come from it too.
+static COMPOSITION_THREAD: std::sync::OnceLock<std::thread::ThreadId> =
+    std::sync::OnceLock::new();
+
 /// The compositor refuses to activate without a dispatcher queue on the
 /// calling thread; tao's main thread never creates one. The controller must
 /// outlive every compositor, so it is held for the process lifetime.
@@ -61,6 +66,7 @@ static DISPATCHER_QUEUE: LazyLock<Mutex<Option<DispatcherQueueController>>> =
     LazyLock::new(|| Mutex::new(None));
 
 fn ensure_dispatcher_queue() -> windows::core::Result<()> {
+    let _ = COMPOSITION_THREAD.set(std::thread::current().id());
     let Ok(mut queue) = DISPATCHER_QUEUE.lock() else {
         return Err(windows::core::Error::from_hresult(E_FAIL));
     };
@@ -220,6 +226,10 @@ impl Backdrop {
 /// Applies or removes the whole-window backdrop. The tint only matters for
 /// the pre-HostBackdrop DWM fallback; the composition material is untinted.
 pub(crate) fn apply(window: &tauri::Window, enabled: bool, tint: Option<(u8, u8, u8, u8)>) {
+    if let Some(thread) = COMPOSITION_THREAD.get() {
+        debug_assert_eq!(*thread, std::thread::current().id());
+    }
+
     let Ok(mut active) = ACTIVE.lock() else {
         return;
     };

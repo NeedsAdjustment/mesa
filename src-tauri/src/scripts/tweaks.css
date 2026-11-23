@@ -317,6 +317,49 @@ div[role='tooltip'] * {
   color: white !important;
 }
 
+/* the page's own context menu over text selections */
+#mesa-context-menu {
+  position: fixed;
+  z-index: 2147483647;
+  min-width: 140px;
+  padding: 4px;
+  background: #2b2b2b;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: #f5f5f5;
+  user-select: none;
+}
+
+#mesa-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+#mesa-context-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.theme-light #mesa-context-menu {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.16);
+  color: #111111;
+}
+
+html.theme-light #mesa-context-menu button:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 .theme-light div[role='tooltip'],
 .theme-light div[role='tooltip'] * {
   background-color: #f3f3f3 !important;
